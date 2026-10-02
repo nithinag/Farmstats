@@ -136,8 +136,8 @@ class NavigationShell extends StatelessWidget {
                 _buildNavItem(
                   context: context,
                   index: 1,
-                  icon: Icons.egg_outlined,
-                  activeIcon: Icons.egg_rounded,
+                  icon: Icons.layers_outlined,
+                  activeIcon: Icons.layers_rounded,
                   label: 'Batches',
                   isSelected: selectedIndex == 1,
                   isDark: isDark,

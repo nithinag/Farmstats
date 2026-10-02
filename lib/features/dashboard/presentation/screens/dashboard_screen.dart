@@ -36,6 +36,13 @@ class DashboardScreen extends ConsumerWidget {
     }
   }
 
+  String _getInitials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.isEmpty || parts[0].isEmpty) return 'F';
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dashboardState = ref.watch(dashboardAggregatorProvider);
@@ -43,11 +50,11 @@ class DashboardScreen extends ConsumerWidget {
     final lastCompletedBatch = ref.watch(lastCompletedBatchProvider);
     final settingsState = ref.watch(settingsNotifierProvider);
     final expenseState = ref.watch(expenseNotifierProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final farmName = switch (settingsState) {
-      SettingsStateData(:final profile) => profile.farmName.isNotEmpty ? profile.farmName : 'My Sericulture Farm',
-      _ => 'My Sericulture Farm',
-    };
+    final profile = (settingsState is SettingsStateData) ? settingsState.profile : null;
+    final farmerName = (profile != null && profile.ownerName.isNotEmpty) ? profile.ownerName : 'Farmer';
+    final farmName = (profile != null && profile.farmName.isNotEmpty) ? profile.farmName : 'My Sericulture Farm';
 
     final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
 
@@ -55,10 +62,13 @@ class DashboardScreen extends ConsumerWidget {
     final today = DateTime.now();
     double todayExpenses = 0.0;
     double todayLabour = 0.0;
+    int todayActivitiesCount = 0;
+
     if (expenseState is ExpenseStateData) {
       for (final e in expenseState.expenses) {
         if (e.date.year == today.year && e.date.month == today.month && e.date.day == today.day) {
           todayExpenses += e.amount;
+          todayActivitiesCount++;
           if (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour')) {
             todayLabour += e.amount;
           }
@@ -68,36 +78,79 @@ class DashboardScreen extends ConsumerWidget {
 
     return BaseScaffold(
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.eco, color: AppColorScheme.primaryLight, size: 22),
-            const SizedBox(width: 8),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'FARMSTATS',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.2,
-                        color: AppColorScheme.primary,
+        titleSpacing: AppSpacing.md,
+        title: InkWell(
+          onTap: () => context.push('/settings/profile'),
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Profile avatar badge
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1B5E20), Color(0xFF43A047)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColorScheme.primary.withValues(alpha: 0.25),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    _getInitials(farmerName),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${_getGreeting()}, $farmerName',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                       ),
-                ),
-                Text(
-                  farmName,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontWeight: FontWeight.normal),
-                ),
-              ],
-            ),
-          ],
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward_ios, size: 10, color: Colors.grey),
+                    ],
+                  ),
+                  Text(
+                    farmName,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           const NotificationBadgeWidget(),
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: 'Refresh Farm Data',
             onPressed: () {
               ref.read(batchNotifierProvider.notifier).loadBatches();
               ref.read(dashboardAggregatorProvider.notifier).loadDashboard();
@@ -140,17 +193,7 @@ class DashboardScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.xxl),
               children: [
-                // Greeting & Farm Header
-                Text(
-                  '${_getGreeting()}, Farmer',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey.shade700,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // 1. ACTIVE BATCH HERO CARD (or Empty State if none active)
+                // 1. ACTIVE BATCH HERO CAPSULE (or Empty State if none active)
                 if (activeBatch != null)
                   _buildActiveBatchHero(context, ref, activeBatch, currency)
                 else
@@ -158,12 +201,12 @@ class DashboardScreen extends ConsumerWidget {
 
                 const SizedBox(height: AppSpacing.lg),
 
-                // 2. TODAY'S SUMMARY
-                _buildTodaySummary(context, currency, todayExpenses, todayLabour),
+                // 2. TODAY'S OPERATIONAL SUMMARY
+                _buildTodaySummary(context, currency, todayExpenses, todayLabour, todayActivitiesCount, isDark),
 
                 const SizedBox(height: AppSpacing.lg),
 
-                // 3. QUICK ACTIONS
+                // 3. QUICK ACTIONS GRID
                 Text(
                   'Quick Actions',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
@@ -180,7 +223,7 @@ class DashboardScreen extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: AppSpacing.sm),
-                  _buildLastCompletedBatchCard(context, ref, lastCompletedBatch, currency),
+                  _buildLastCompletedBatchCard(context, ref, lastCompletedBatch, currency, isDark),
                   const SizedBox(height: AppSpacing.lg),
                 ],
 
@@ -190,13 +233,13 @@ class DashboardScreen extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: AppSpacing.sm),
-                _buildPerformanceCharts(context, ref),
+                _buildPerformanceCharts(context, ref, isDark),
 
-                // 6. IMPORTANT ALERTS
+                // 6. IMPORTANT ALERTS (ONLY IF REAL)
                 if (alertList.isNotEmpty || lowStock > 0) ...[
                   const SizedBox(height: AppSpacing.lg),
                   Text(
-                    'Pending Items & Alerts',
+                    'Farm Alerts & Reminders',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -240,8 +283,8 @@ class DashboardScreen extends ConsumerWidget {
     final progress = (currentDay / totalDuration.toDouble()).clamp(0.0, 1.0);
 
     return Card(
-      elevation: 3,
-      shadowColor: AppColorScheme.primary.withValues(alpha: 0.2),
+      elevation: 4,
+      shadowColor: AppColorScheme.primary.withValues(alpha: 0.25),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
       child: Container(
         decoration: BoxDecoration(
@@ -290,14 +333,30 @@ class DashboardScreen extends ConsumerWidget {
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 24),
             ),
             const SizedBox(height: 4),
-            Text(
-              '${batch.numberOfDfls} DFLs • Stage: ${batch.currentStage.name.toUpperCase()} INSTAR',
-              style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppRadius.xs),
+                  ),
+                  child: Text(
+                    'Stage: ${batch.currentStage.name.toUpperCase()}',
+                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${batch.numberOfDfls} DFLs',
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
-              'Started: ${DateFormat('dd MMM yyyy').format(batch.startDate)}',
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11),
+              'Started: ${DateFormat('dd MMM yyyy').format(batch.startDate)} • Expected: ${DateFormat('dd MMM yyyy').format(batch.expectedHarvestDate)}',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 11),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -306,7 +365,7 @@ class DashboardScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text('Rearing Cycle Progress', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                Text('${(progress * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                Text('${(progress * 100).toStringAsFixed(1)}%', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
               ],
             ),
             const SizedBox(height: 6),
@@ -323,7 +382,7 @@ class DashboardScreen extends ConsumerWidget {
 
             // Real Current Batch Financial KPIs inside card
             Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: 8),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(AppRadius.md),
@@ -385,7 +444,7 @@ class DashboardScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           children: [
-            Icon(Icons.egg_outlined, size: 48, color: Colors.grey.shade600),
+            Icon(Icons.layers_outlined, size: 48, color: Colors.grey.shade600),
             const SizedBox(height: AppSpacing.sm),
             const Text(
               'No Active Batch',
@@ -410,24 +469,54 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildTodaySummary(BuildContext context, NumberFormat currency, double expenses, double labour) {
+  Widget _buildTodaySummary(
+    BuildContext context,
+    NumberFormat currency,
+    double expenses,
+    double labour,
+    int activitiesCount,
+    bool isDark,
+  ) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: isDark ? AppColorScheme.surfaceContainerDark : AppColorScheme.surfaceLight,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: isDark ? AppColorScheme.cardBorderDark : AppColorScheme.cardBorderLight,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Icon(Icons.today, size: 16, color: AppColorScheme.primary),
-              const SizedBox(width: 6),
-              Text(
-                "TODAY'S FARM ACTIVITY",
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey.shade700, letterSpacing: 0.8),
+              Row(
+                children: [
+                  const Icon(Icons.today, size: 16, color: AppColorScheme.primaryLight),
+                  const SizedBox(width: 6),
+                  Text(
+                    "TODAY'S FARM ACTIVITY",
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF2E3B2E) : const Color(0xFFE8F5E9),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(
+                  '$activitiesCount logged',
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColorScheme.primaryLight),
+                ),
               ),
             ],
           ),
@@ -481,6 +570,13 @@ class DashboardScreen extends ConsumerWidget {
                 colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
               ),
               borderRadius: BorderRadius.circular(AppRadius.md),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF2E7D32).withValues(alpha: 0.25),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
             child: const Row(
               children: [
@@ -587,6 +683,7 @@ class DashboardScreen extends ConsumerWidget {
     WidgetRef ref,
     Batch batch,
     NumberFormat currency,
+    bool isDark,
   ) {
     final expensesState = ref.watch(expenseNotifierProvider);
     final incomesState = ref.watch(incomeNotifierProvider);
@@ -618,10 +715,10 @@ class DashboardScreen extends ConsumerWidget {
 
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: isDark ? AppColorScheme.surfaceContainerDark : AppColorScheme.surfaceLight,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: isDark ? AppColorScheme.cardBorderDark : AppColorScheme.cardBorderLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -635,20 +732,20 @@ class DashboardScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
                   child: const Text('Completed', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                 ),
               ],
             ),
-            const Divider(),
+            Divider(color: isDark ? AppColorScheme.cardBorderDark : AppColorScheme.cardBorderLight),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _batchSummaryItem('Total Yield', '${batchYield.toStringAsFixed(1)} kg'),
-                _batchSummaryItem('Net Revenue', currency.format(batchRev)),
-                _batchSummaryItem('Net Profit', currency.format(profit), isPositive: profit >= 0),
+                _batchSummaryItem('Total Yield', '${batchYield.toStringAsFixed(1)} kg', isDark),
+                _batchSummaryItem('Net Revenue', currency.format(batchRev), isDark),
+                _batchSummaryItem('Net Profit', currency.format(profit), isDark, isPositive: profit >= 0),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -666,7 +763,7 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _batchSummaryItem(String label, String value, {bool? isPositive}) {
+  Widget _batchSummaryItem(String label, String value, bool isDark, {bool? isPositive}) {
     return Column(
       children: [
         Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
@@ -676,14 +773,16 @@ class DashboardScreen extends ConsumerWidget {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: isPositive == null ? Colors.black87 : (isPositive ? AppColorScheme.success : AppColorScheme.error),
+            color: isPositive == null
+                ? (isDark ? Colors.white : Colors.black87)
+                : (isPositive ? AppColorScheme.success : AppColorScheme.error),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildPerformanceCharts(BuildContext context, WidgetRef ref) {
+  Widget _buildPerformanceCharts(BuildContext context, WidgetRef ref, bool isDark) {
     final batchState = ref.watch(batchNotifierProvider);
     final harvestsState = ref.watch(harvestNotifierProvider);
 
@@ -708,10 +807,10 @@ class DashboardScreen extends ConsumerWidget {
     if (completedYields.isEmpty) {
       return Card(
         elevation: 0,
-        color: Colors.white,
+        color: isDark ? AppColorScheme.surfaceContainerDark : AppColorScheme.surfaceLight,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          side: BorderSide(color: Colors.grey.shade200),
+          side: BorderSide(color: isDark ? AppColorScheme.cardBorderDark : AppColorScheme.cardBorderLight),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.md),
@@ -722,7 +821,7 @@ class DashboardScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'No Batch Trends Available',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey.shade700),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isDark ? Colors.white70 : Colors.grey.shade700),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -742,10 +841,10 @@ class DashboardScreen extends ConsumerWidget {
 
     return Card(
       elevation: 0,
-      color: Colors.white,
+      color: isDark ? AppColorScheme.surfaceContainerDark : AppColorScheme.surfaceLight,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: isDark ? AppColorScheme.cardBorderDark : AppColorScheme.cardBorderLight),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
@@ -755,59 +854,99 @@ class DashboardScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Cocoon Production Yield (kg)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                Text('${completedYields.length} Batches', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                const Text(
+                  'Cocoon Production Yield (kg)',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2E3B2E) : const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: const Text(
+                    'Real Harvests',
+                    style: TextStyle(fontSize: 10, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
             SizedBox(
-              height: 140,
+              height: 160,
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
                   maxY: chartMaxY,
-                  barTouchData: const BarTouchData(enabled: true),
+                  barTouchData: BarTouchData(
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        final item = completedYields[group.x.toInt()];
+                        return BarTooltipItem(
+                          '${item.$1}\n${rod.toY.toStringAsFixed(1)} kg',
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                        );
+                      },
+                    ),
+                  ),
                   titlesData: FlTitlesData(
                     show: true,
                     topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                     rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (val, meta) {
+                          final idx = val.toInt();
+                          if (idx >= 0 && idx < completedYields.length) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                completedYields[idx].$1,
+                                style: TextStyle(fontSize: 10, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+                              ),
+                            );
+                          }
+                          return const SizedBox.shrink();
+                        },
+                      ),
+                    ),
                     leftTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
                         reservedSize: 28,
-                        getTitlesWidget: (v, _) => Text('${v.toInt()}', style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                      ),
-                    ),
-                    bottomTitles: AxisTitles(
-                      sideTitles: SideTitles(
-                        showTitles: true,
-                        getTitlesWidget: (val, _) {
-                          final idx = val.toInt();
-                          if (idx >= 0 && idx < completedYields.length) {
-                            return Text(completedYields[idx].$1, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold));
-                          }
-                          return const Text('');
+                        getTitlesWidget: (val, meta) {
+                          return Text(
+                            val.toInt().toString(),
+                            style: TextStyle(fontSize: 9, color: isDark ? Colors.grey.shade500 : Colors.grey.shade600),
+                          );
                         },
                       ),
                     ),
                   ),
-                  gridData: const FlGridData(show: false),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    horizontalInterval: chartMaxY / 4,
+                    getDrawingHorizontalLine: (val) => FlLine(
+                      color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
+                      strokeWidth: 1,
+                    ),
+                  ),
                   borderData: FlBorderData(show: false),
-                  barGroups: completedYields.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final item = entry.value;
+                  barGroups: List.generate(completedYields.length, (idx) {
                     return BarChartGroupData(
                       x: idx,
                       barRods: [
                         BarChartRodData(
-                          toY: item.$2,
-                          color: idx % 2 == 0 ? AppColorScheme.primary : AppColorScheme.primaryLight,
-                          width: 18,
-                          borderRadius: BorderRadius.circular(4),
+                          toY: completedYields[idx].$2,
+                          color: const Color(0xFF2E7D32),
+                          width: 22,
+                          borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                         ),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ),
               ),
             ),
@@ -820,20 +959,26 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildAlertTile(String alert) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3E0),
+        color: const Color(0xFFFFF8E1),
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: const Color(0xFFFFB74D)),
+        border: Border.all(
+          color: Colors.amber.shade200,
+        ),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded, color: Color(0xFFE65100), size: 20),
+          Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.amber.shade800,
+            size: 20,
+          ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               alert,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFE65100)),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade800, fontWeight: FontWeight.w500),
             ),
           ),
         ],

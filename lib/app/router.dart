@@ -37,6 +37,7 @@ import '../features/batches/presentation/screens/batch_details_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/settings/presentation/screens/farm_profile_screen.dart';
 import '../features/settings/presentation/screens/preferences_screen.dart';
+import '../features/settings/presentation/screens/language_selection_screen.dart';
 import '../features/settings/presentation/screens/about_screen.dart';
 import '../features/onboarding/presentation/screens/welcome_screen.dart';
 import '../shared/widgets/navigation_shell.dart';
@@ -293,6 +294,10 @@ final GoRouter appRouter = GoRouter(
                 GoRoute(
                   path: 'preferences',
                   builder: (context, state) => const PreferencesScreen(),
+                ),
+                GoRoute(
+                  path: 'language',
+                  builder: (context, state) => const LanguageSelectionScreen(),
                 ),
                 GoRoute(
                   path: 'about',

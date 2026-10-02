@@ -254,6 +254,12 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
     double profit,
     NumberFormat currency,
   ) {
+    final durationDays = batch.expectedHarvestDate.difference(batch.startDate).inDays;
+    final totalDuration = durationDays > 0 ? durationDays : 30;
+    final currentDay = batch.currentAgeDays > 0 ? batch.currentAgeDays : (DateTime.now().difference(batch.startDate).inDays + 1);
+    final progress = (currentDay / totalDuration.toDouble()).clamp(0.0, 1.0);
+    final isCompleted = batch.status == BatchStatus.completed;
+
     return Container(
       width: double.infinity,
       color: AppColorScheme.primary,
@@ -265,22 +271,36 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Day ${batch.currentAgeDays} • ${batch.currentStage.name.toUpperCase()} INSTAR',
-                style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                isCompleted
+                    ? '✓ COMPLETED ($totalDuration DAYS CYCLE)'
+                    : 'Day ${currentDay.toString().padLeft(2, '0')} / $totalDuration • ${batch.currentStage.name.toUpperCase()} INSTAR',
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
+                  color: isCompleted ? Colors.amber.shade700 : Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
                 child: Text(
-                  batch.status.name.toUpperCase(),
+                  isCompleted ? '✓ ARCHIVED' : '● ${batch.status.name.toUpperCase()}',
                   style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
+          if (!isCompleted) ...[
+            const SizedBox(height: 6),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 4,
+                backgroundColor: Colors.white24,
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF81C784)),
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
 
           // Mini Metric Cards
