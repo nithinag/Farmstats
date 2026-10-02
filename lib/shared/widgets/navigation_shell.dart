@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/spacing.dart';
 import '../../core/theme/radius.dart';
+import '../../core/theme/color_scheme.dart';
 
 class NavigationShell extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
@@ -51,6 +52,16 @@ class NavigationShell extends StatelessWidget {
                   children: [
                     _QuickActionCard(
                       context: context,
+                      title: 'Record Cocoon Sale',
+                      icon: Icons.payments,
+                      color: const Color(0xFF2E7D32),
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.push('/cocoon-sale');
+                      },
+                    ),
+                    _QuickActionCard(
+                      context: context,
                       title: 'Add Expense',
                       icon: Icons.receipt_long,
                       color: const Color(0xFFD32F2F),
@@ -61,32 +72,22 @@ class NavigationShell extends StatelessWidget {
                     ),
                     _QuickActionCard(
                       context: context,
-                      title: 'Add Revenue',
-                      icon: Icons.payments,
-                      color: const Color(0xFF2E7D32),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/income/add');
-                      },
-                    ),
-                    _QuickActionCard(
-                      context: context,
-                      title: 'Add Worker',
+                      title: 'Log Labour',
                       icon: Icons.people,
                       color: const Color(0xFF1565C0),
                       onTap: () {
                         Navigator.pop(context);
-                        context.push('/labour/add');
+                        context.push('/labour/attendance');
                       },
                     ),
                     _QuickActionCard(
                       context: context,
-                      title: 'Add Harvest',
-                      icon: Icons.agriculture,
-                      color: const Color(0xFFE65100),
+                      title: 'Log Feeding',
+                      icon: Icons.eco,
+                      color: const Color(0xFF00796B),
                       onTap: () {
                         Navigator.pop(context);
-                        context.push('/harvest/add');
+                        context.push('/feeding/add');
                       },
                     ),
                   ],
@@ -135,18 +136,18 @@ class NavigationShell extends StatelessWidget {
                 _buildNavItem(
                   context: context,
                   index: 1,
-                  icon: Icons.receipt_long_outlined,
-                  activeIcon: Icons.receipt_long_rounded,
-                  label: 'Expenses',
+                  icon: Icons.egg_outlined,
+                  activeIcon: Icons.egg_rounded,
+                  label: 'Batches',
                   isSelected: selectedIndex == 1,
                   isDark: isDark,
                 ),
                 _buildNavItem(
                   context: context,
                   index: 2,
-                  icon: Icons.payments_outlined,
-                  activeIcon: Icons.payments_rounded,
-                  label: 'Revenue',
+                  icon: Icons.receipt_long_outlined,
+                  activeIcon: Icons.receipt_long_rounded,
+                  label: 'Expenses',
                   isSelected: selectedIndex == 2,
                   isDark: isDark,
                 ),
@@ -185,7 +186,7 @@ class NavigationShell extends StatelessWidget {
     required bool isSelected,
     required bool isDark,
   }) {
-    final activeColor = Theme.of(context).colorScheme.primary;
+    final activeColor = AppColorScheme.primary;
     final inactiveColor = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6);
 
     return Expanded(
@@ -211,7 +212,7 @@ class NavigationShell extends StatelessWidget {
                   color: isSelected
                       ? (isDark
                           ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2)
-                          : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.7))
+                          : AppColorScheme.primaryContainer.withValues(alpha: 0.7))
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
                 ),
@@ -292,4 +293,3 @@ class _QuickActionCard extends StatelessWidget {
     );
   }
 }
-

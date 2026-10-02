@@ -25,6 +25,7 @@ import '../features/harvest/domain/entities/harvest_entities.dart';
 import '../features/harvest/presentation/screens/harvest_list_screen.dart';
 import '../features/harvest/presentation/screens/harvest_form_screen.dart';
 import '../features/harvest/presentation/screens/harvest_details_screen.dart';
+import '../features/harvest/presentation/screens/cocoon_sale_wizard_screen.dart';
 import '../features/reports/presentation/screens/reports_dashboard_screen.dart';
 import '../features/reports/presentation/screens/financial_report_screen.dart';
 import '../features/notifications/presentation/screens/notification_center_screen.dart';
@@ -33,7 +34,6 @@ import '../features/batches/domain/entities/batch_entities.dart';
 import '../features/batches/presentation/screens/batch_list_screen.dart';
 import '../features/batches/presentation/screens/batch_form_screen.dart';
 import '../features/batches/presentation/screens/batch_details_screen.dart';
-
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/settings/presentation/screens/farm_profile_screen.dart';
 import '../features/settings/presentation/screens/preferences_screen.dart';
@@ -51,7 +51,15 @@ final GoRouter appRouter = GoRouter(
       path: '/welcome',
       builder: (context, state) => const WelcomeScreen(),
     ),
-    // Full-screen operational routes (hidden bottom nav)
+    // Unified Cocoon Sale Wizard
+    GoRoute(
+      path: '/cocoon-sale',
+      builder: (context, state) {
+        final batchId = state.extra as String?;
+        return CocoonSaleWizardScreen(initialBatchId: batchId);
+      },
+    ),
+    // Full-screen operational routes
     GoRoute(
       path: '/inventory',
       builder: (context, state) => const InventoryListScreen(),
@@ -72,32 +80,6 @@ final GoRouter appRouter = GoRouter(
               builder: (context, state) {
                 final item = state.extra as InventoryItem;
                 return InventoryFormScreen(item: item);
-              },
-            ),
-          ],
-        ),
-      ],
-    ),
-    GoRoute(
-      path: '/batch',
-      builder: (context, state) => const BatchListScreen(),
-      routes: [
-        GoRoute(
-          path: 'add',
-          builder: (context, state) => const BatchFormScreen(),
-        ),
-        GoRoute(
-          path: ':id',
-          builder: (context, state) {
-            final batch = state.extra as Batch;
-            return BatchDetailsScreen(batch: batch);
-          },
-          routes: [
-            GoRoute(
-              path: 'edit',
-              builder: (context, state) {
-                final batch = state.extra as Batch;
-                return BatchFormScreen(batch: batch);
               },
             ),
           ],
@@ -143,7 +125,7 @@ final GoRouter appRouter = GoRouter(
           builder: (context, state) {
             final batchId = state.extra as String?;
             return FeedingFormScreen(initialBatchId: batchId);
-          }
+          },
         ),
         GoRoute(
           path: 'health',
@@ -169,9 +151,39 @@ final GoRouter appRouter = GoRouter(
       ],
     ),
     GoRoute(
+      path: '/income',
+      builder: (context, state) => const IncomeListScreen(),
+      routes: [
+        GoRoute(
+          path: 'add',
+          builder: (context, state) {
+            final batchId = state.extra as String?;
+            return IncomeFormScreen(initialBatchId: batchId);
+          },
+        ),
+        GoRoute(
+          path: ':id',
+          builder: (context, state) {
+            final income = state.extra as Income;
+            return IncomeDetailsScreen(income: income);
+          },
+          routes: [
+            GoRoute(
+              path: 'edit',
+              builder: (context, state) {
+                final income = state.extra as Income;
+                return IncomeFormScreen(income: income);
+              },
+            ),
+          ],
+        ),
+      ],
+    ),
+    GoRoute(
       path: '/notifications',
       builder: (context, state) => const NotificationCenterScreen(),
     ),
+
     // Stateful Shell Route for Bottom Nav Tabs
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
@@ -187,7 +199,38 @@ final GoRouter appRouter = GoRouter(
             ),
           ],
         ),
-        // Branch 1: Expenses
+        // Branch 1: Batches
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/batch',
+              builder: (context, state) => const BatchListScreen(),
+              routes: [
+                GoRoute(
+                  path: 'add',
+                  builder: (context, state) => const BatchFormScreen(),
+                ),
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) {
+                    final batch = state.extra as Batch;
+                    return BatchDetailsScreen(batch: batch);
+                  },
+                  routes: [
+                    GoRoute(
+                      path: 'edit',
+                      builder: (context, state) {
+                        final batch = state.extra as Batch;
+                        return BatchFormScreen(batch: batch);
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        // Branch 2: Expenses
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -199,7 +242,7 @@ final GoRouter appRouter = GoRouter(
                   builder: (context, state) {
                     final batchId = state.extra as String?;
                     return ExpenseFormScreen(initialBatchId: batchId);
-                  }
+                  },
                 ),
                 GoRoute(
                   path: ':id',
@@ -213,40 +256,6 @@ final GoRouter appRouter = GoRouter(
                       builder: (context, state) {
                         final expense = state.extra as Expense;
                         return ExpenseFormScreen(expense: expense);
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-        // Branch 2: Revenue
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/income',
-              builder: (context, state) => const IncomeListScreen(),
-              routes: [
-                GoRoute(
-                  path: 'add',
-                  builder: (context, state) {
-                    final batchId = state.extra as String?;
-                    return IncomeFormScreen(initialBatchId: batchId);
-                  }
-                ),
-                GoRoute(
-                  path: ':id',
-                  builder: (context, state) {
-                    final income = state.extra as Income;
-                    return IncomeDetailsScreen(income: income);
-                  },
-                  routes: [
-                    GoRoute(
-                      path: 'edit',
-                      builder: (context, state) {
-                        final income = state.extra as Income;
-                        return IncomeFormScreen(income: income);
                       },
                     ),
                   ],
@@ -270,7 +279,7 @@ final GoRouter appRouter = GoRouter(
             ),
           ],
         ),
-        // Branch 4: Settings
+        // Branch 4: Settings & Farm Configuration
         StatefulShellBranch(
           routes: [
             GoRoute(

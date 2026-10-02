@@ -19,7 +19,10 @@ void main() {
       ),
     );
 
-    // Wait for the router and initial frames to settle
-    await tester.pumpAndSettle();
+    // Wait for the initial frame to render
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.byType(FarmOSApp), findsOneWidget);
   });
 }

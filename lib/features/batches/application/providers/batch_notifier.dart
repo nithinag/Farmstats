@@ -23,6 +23,49 @@ final addBatchUseCaseProvider = Provider((ref) => AddBatchUseCase(ref.watch(batc
 final updateBatchUseCaseProvider = Provider((ref) => UpdateBatchUseCase(ref.watch(batchRepositoryProvider)));
 final getBatchTimelineUseCaseProvider = Provider((ref) => GetBatchTimelineUseCase(ref.watch(batchRepositoryProvider)));
 
+final activeBatchProvider = Provider<Batch?>((ref) {
+  final batchState = ref.watch(batchNotifierProvider);
+  return batchState.maybeWhen(
+    data: (batches) {
+      if (batches.isEmpty) return null;
+      try {
+        return batches.firstWhere(
+          (b) => b.status == BatchStatus.active,
+          orElse: () => batches.firstWhere(
+            (b) => b.status != BatchStatus.completed && b.status != BatchStatus.cancelled,
+            orElse: () => batches.first,
+          ),
+        );
+      } catch (_) {
+        return null;
+      }
+    },
+    orElse: () => null,
+  );
+});
+
+final lastCompletedBatchProvider = Provider<Batch?>((ref) {
+  final batchState = ref.watch(batchNotifierProvider);
+  return batchState.maybeWhen(
+    data: (batches) {
+      final completed = batches.where((b) => b.status == BatchStatus.completed).toList();
+      return completed.isNotEmpty ? completed.first : null;
+    },
+    orElse: () => null,
+  );
+});
+
+final nextBatchNumberProvider = Provider<String>((ref) {
+  final batchState = ref.watch(batchNotifierProvider);
+  return batchState.maybeWhen(
+    data: (batches) {
+      final nextNumber = batches.length + 1;
+      return '#${nextNumber.toString().padLeft(3, '0')}';
+    },
+    orElse: () => '#001',
+  );
+});
+
 final batchNotifierProvider = NotifierProvider<BatchNotifier, BatchState>(() {
   return BatchNotifier();
 });
@@ -62,4 +105,13 @@ class BatchNotifier extends Notifier<BatchState> {
       return true;
     });
   }
+
+  Future<bool> completeBatch(Batch batch) async {
+    final completed = batch.copyWith(
+      status: BatchStatus.completed,
+      actualHarvestDate: batch.actualHarvestDate ?? DateTime.now(),
+    );
+    return await updateBatch(completed, batch);
+  }
 }
+
