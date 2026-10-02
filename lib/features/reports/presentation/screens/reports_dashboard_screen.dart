@@ -381,8 +381,24 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
             child: Builder(
               builder: (context) {
                 final spots = _getLineChartSpots(_analyticsTab, fin, expenses, incomes);
-                final maxVal = spots.isEmpty ? 1000.0 : spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
-                final chartMaxY = maxVal > 0 ? maxVal * 1.25 : 1000.0;
+                final maxVal = spots.isEmpty ? 0.0 : spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+                if (maxVal == 0) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.show_chart, size: 36, color: Colors.grey[400]),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'No $_analyticsTab transactions in the past 6 months',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final chartMaxY = maxVal * 1.25;
                 final intervalY = chartMaxY / 3;
 
                 return LineChart(
@@ -472,22 +488,39 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
               width: 1,
             ),
           ),
-          child: Column(
-            children: [
-              SizedBox(
-                height: 180,
-                child: PieChart(
-                  PieChartData(
-                    sectionsSpace: 2,
-                    centerSpaceRadius: 42,
-                    sections: _getPieChartSections(fin.expensesByCategory),
+          child: fin.expensesByCategory.isEmpty
+              ? SizedBox(
+                  height: 120,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.pie_chart_outline, size: 36, color: Colors.grey[400]),
+                        const SizedBox(height: AppSpacing.xs),
+                        Text(
+                          'No category data recorded yet',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
                   ),
+                )
+              : Column(
+                  children: [
+                    SizedBox(
+                      height: 180,
+                      child: PieChart(
+                        PieChartData(
+                          sectionsSpace: 2,
+                          centerSpaceRadius: 42,
+                          sections: _getPieChartSections(fin.expensesByCategory),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildPieChartLegend(fin.expensesByCategory),
+                  ],
                 ),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              _buildPieChartLegend(fin.expensesByCategory),
-            ],
-          ),
         ),
         const SizedBox(height: AppSpacing.lg),
       ],

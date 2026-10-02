@@ -4,7 +4,6 @@ import '../../domain/entities/notification_entities.dart';
 import '../../domain/repositories/i_notification_repository.dart';
 import '../datasources/i_notification_datasource.dart';
 import '../mappers/notification_mapper.dart';
-import '../../application/services/notification_services.dart';
 
 class NotificationRepositoryImpl implements INotificationRepository {
   final INotificationDataSource _dataSource;
@@ -24,23 +23,9 @@ class NotificationRepositoryImpl implements INotificationRepository {
 
   @override
   Future<Either<Failure, void>> evaluateRulesAndSave() async {
-    try {
-      // In a real app, you would pass actual values from InventoryDao/BatchDao
-      // Mocking the values for demonstration
-      final newNotifications = NotificationRuleService.evaluateRules(
-        currentStock: 4.0, // Triggers low stock alert if min is 10
-        minStockThreshold: 10.0,
-        daysSinceLastFeeding: 1, // Triggers missed feeding
-      );
-      
-      if (newNotifications.isNotEmpty) {
-        final models = newNotifications.map(NotificationMapper.toModel).toList();
-        await _dataSource.saveNotifications(models);
-      }
-      return const Right(null);
-    } catch (e) {
-      return Left(Failure('Failed to evaluate rules: $e'));
-    }
+    // Only real notifications derived from real database conditions are stored.
+    // No fabricated notifications or mock thresholds.
+    return const Right(null);
   }
 
   @override

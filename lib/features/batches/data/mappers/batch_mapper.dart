@@ -3,22 +3,55 @@ import '../models/batch_models.dart';
 
 class BatchMapper {
   static Batch fromModel(BatchModel model) {
+    DateTime parseDate(String? dateStr, DateTime fallback) {
+      if (dateStr == null || dateStr.trim().isEmpty) return fallback;
+      try {
+        return DateTime.parse(dateStr);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    final start = parseDate(model.startDate, DateTime.now());
+    final expectedHarvest = parseDate(model.expectedHarvestDate, start.add(const Duration(days: 30)));
+    final actualHarvest = model.actualHarvestDate != null && model.actualHarvestDate!.isNotEmpty
+        ? parseDate(model.actualHarvestDate, expectedHarvest)
+        : null;
+
+    final currentStage = InstarStage.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.currentStage.trim().toLowerCase(),
+      orElse: () => InstarStage.first,
+    );
+
+    final status = BatchStatus.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.status.trim().toLowerCase(),
+      orElse: () => BatchStatus.active,
+    );
+
+    final healthStatus = HealthStatus.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.healthStatus.trim().toLowerCase(),
+      orElse: () => HealthStatus.good,
+    );
+
+    final calculatedAge = DateTime.now().difference(start).inDays + 1;
+    final age = model.currentAgeDays > 0 ? model.currentAgeDays : (calculatedAge > 0 ? calculatedAge : 1);
+
     return Batch(
       id: model.id,
       batchName: model.batchName,
-      startDate: DateTime.parse(model.startDate),
-      expectedHarvestDate: DateTime.parse(model.expectedHarvestDate),
-      actualHarvestDate: model.actualHarvestDate != null ? DateTime.parse(model.actualHarvestDate!) : null,
+      startDate: start,
+      expectedHarvestDate: expectedHarvest,
+      actualHarvestDate: actualHarvest,
       silkwormVariety: model.silkwormVariety,
       eggSource: model.eggSource,
       numberOfDfls: model.numberOfDfls,
       dflPrice: model.dflPrice,
       mulberryVariety: model.mulberryVariety,
       rearingHouse: model.rearingHouse,
-      currentStage: InstarStage.values.firstWhere((e) => e.name == model.currentStage),
-      currentAgeDays: model.currentAgeDays,
-      status: BatchStatus.values.firstWhere((e) => e.name == model.status),
-      healthStatus: HealthStatus.values.firstWhere((e) => e.name == model.healthStatus),
+      currentStage: currentStage,
+      currentAgeDays: age,
+      status: status,
+      healthStatus: healthStatus,
       temperature: model.temperature,
       humidity: model.humidity,
       notes: model.notes,

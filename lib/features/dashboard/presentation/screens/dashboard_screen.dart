@@ -152,7 +152,7 @@ class DashboardScreen extends ConsumerWidget {
 
                 // 1. ACTIVE BATCH HERO CARD (or Empty State if none active)
                 if (activeBatch != null)
-                  _buildActiveBatchHero(context, activeBatch)
+                  _buildActiveBatchHero(context, ref, activeBatch, currency)
                 else
                   _buildNoActiveBatchCard(context),
 
@@ -210,8 +210,34 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActiveBatchHero(BuildContext context, Batch batch) {
-    final progress = (batch.currentAgeDays / 28.0).clamp(0.0, 1.0);
+  Widget _buildActiveBatchHero(BuildContext context, WidgetRef ref, Batch batch, NumberFormat currency) {
+    final expensesState = ref.watch(expenseNotifierProvider);
+    final incomesState = ref.watch(incomeNotifierProvider);
+
+    // Calculate real batch financials
+    double batchExpenses = 0.0;
+    double batchLabour = 0.0;
+    if (expensesState is ExpenseStateData) {
+      for (final e in expensesState.expenses.where((e) => e.batchId == batch.id)) {
+        batchExpenses += e.amount;
+        if (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour')) {
+          batchLabour += e.amount;
+        }
+      }
+    }
+
+    double batchRevenue = 0.0;
+    if (incomesState is IncomeStateData) {
+      batchRevenue = incomesState.incomes
+          .where((i) => i.batchId == batch.id)
+          .fold(0.0, (sum, i) => sum + i.netAmount);
+    }
+
+    // Configurable duration calculation
+    final durationDays = batch.expectedHarvestDate.difference(batch.startDate).inDays;
+    final totalDuration = durationDays > 0 ? durationDays : 30;
+    final currentDay = batch.currentAgeDays > 0 ? batch.currentAgeDays : (DateTime.now().difference(batch.startDate).inDays + 1);
+    final progress = (currentDay / totalDuration.toDouble()).clamp(0.0, 1.0);
 
     return Card(
       elevation: 3,
@@ -230,6 +256,7 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top capsule header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -239,14 +266,21 @@ class DashboardScreen extends ConsumerWidget {
                     color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(AppRadius.pill),
                   ),
-                  child: const Text(
-                    'ACTIVE BATCH',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 0.8),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.circle, color: Color(0xFF81C784), size: 8),
+                      SizedBox(width: 6),
+                      Text(
+                        'ACTIVE BATCH',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 11, letterSpacing: 0.8),
+                      ),
+                    ],
                   ),
                 ),
                 Text(
-                  'Day ${batch.currentAgeDays.toString().padLeft(2, '0')}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                  'Day ${currentDay.toString().padLeft(2, '0')} / $totalDuration',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15),
                 ),
               ],
             ),
@@ -257,8 +291,13 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              '${batch.numberOfDfls} DFLs (${batch.silkwormVariety}) • Stage: ${batch.currentStage.name.toUpperCase()} INSTAR',
+              '${batch.numberOfDfls} DFLs • Stage: ${batch.currentStage.name.toUpperCase()} INSTAR',
               style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Started: ${DateFormat('dd MMM yyyy').format(batch.startDate)}',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -266,7 +305,7 @@ class DashboardScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Rearing Progress', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                const Text('Rearing Cycle Progress', style: TextStyle(color: Colors.white70, fontSize: 11)),
                 Text('${(progress * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
               ],
             ),
@@ -280,7 +319,26 @@ class DashboardScreen extends ConsumerWidget {
                 valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF81C784)),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
+
+            // Real Current Batch Financial KPIs inside card
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _capsuleMiniKpi('DFLs', '${batch.numberOfDfls}'),
+                  _capsuleMiniKpi('Expenses', currency.format(batchExpenses)),
+                  _capsuleMiniKpi('Labour', currency.format(batchLabour)),
+                  _capsuleMiniKpi('Revenue', currency.format(batchRevenue)),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
 
             // Action button
             SizedBox(
@@ -295,12 +353,23 @@ class DashboardScreen extends ConsumerWidget {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                 ),
                 icon: const Icon(Icons.launch, size: 18),
-                label: const Text('Open Batch Command Center', style: TextStyle(fontWeight: FontWeight.bold)),
+                label: const Text('OPEN BATCH WORKSPACE', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _capsuleMiniKpi(String label, String value) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+      ],
     );
   }
 
@@ -540,7 +609,9 @@ class DashboardScreen extends ConsumerWidget {
     double batchYield = 0.0;
     if (harvestsState is HarvestStateData) {
       final h = harvestsState.harvests.where((h) => h.batchId == batch.id).toList();
-      if (h.isNotEmpty) batchYield = h.first.netSaleableWeight;
+      if (h.isNotEmpty) {
+        batchYield = h.fold(0.0, (sum, item) => sum + item.netSaleableWeight);
+      }
     }
 
     final profit = batchRev - batchExp;
@@ -575,9 +646,9 @@ class DashboardScreen extends ConsumerWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _batchSummaryItem('Total Yield', batchYield > 0 ? '${batchYield.toStringAsFixed(1)} kg' : '80.0 kg'),
-                _batchSummaryItem('Net Revenue', currency.format(batchRev > 0 ? batchRev : 42300)),
-                _batchSummaryItem('Net Profit', currency.format(profit != 0 ? profit : 20400), isPositive: profit >= 0),
+                _batchSummaryItem('Total Yield', '${batchYield.toStringAsFixed(1)} kg'),
+                _batchSummaryItem('Net Revenue', currency.format(batchRev)),
+                _batchSummaryItem('Net Profit', currency.format(profit), isPositive: profit >= 0),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -614,10 +685,60 @@ class DashboardScreen extends ConsumerWidget {
 
   Widget _buildPerformanceCharts(BuildContext context, WidgetRef ref) {
     final batchState = ref.watch(batchNotifierProvider);
+    final harvestsState = ref.watch(harvestNotifierProvider);
+
     final batches = switch (batchState) {
-      BatchStateData(batches: final list) => list,
+      BatchStateData(batches: final list) => list.where((b) => b.status == BatchStatus.completed).toList(),
       _ => <Batch>[],
     };
+
+    // Calculate real yields for completed batches
+    final List<(String, double)> completedYields = [];
+    if (harvestsState is HarvestStateData) {
+      for (final b in batches) {
+        final bYield = harvestsState.harvests
+            .where((h) => h.batchId == b.id)
+            .fold(0.0, (sum, h) => sum + h.netSaleableWeight);
+        if (bYield > 0) {
+          completedYields.add((b.batchName, bYield));
+        }
+      }
+    }
+
+    if (completedYields.isEmpty) {
+      return Card(
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          side: BorderSide(color: Colors.grey.shade200),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.md),
+          child: Center(
+            child: Column(
+              children: [
+                Icon(Icons.bar_chart_outlined, size: 36, color: Colors.grey.shade400),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'No Batch Trends Available',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey.shade700),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Complete batches and record cocoon sales to see historical performance trends.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final maxYield = completedYields.map((e) => e.$2).reduce((a, b) => a > b ? a : b);
+    final chartMaxY = (maxYield * 1.25).clamp(20.0, 500.0);
 
     return Card(
       elevation: 0,
@@ -631,11 +752,11 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Production Yield (kg / Batch)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                Text('Last Batches', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                const Text('Cocoon Production Yield (kg)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                Text('${completedYields.length} Batches', style: const TextStyle(fontSize: 11, color: Colors.grey)),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -644,7 +765,7 @@ class DashboardScreen extends ConsumerWidget {
               child: BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
-                  maxY: 100,
+                  maxY: chartMaxY,
                   barTouchData: const BarTouchData(enabled: true),
                   titlesData: FlTitlesData(
                     show: true,
@@ -662,21 +783,31 @@ class DashboardScreen extends ConsumerWidget {
                         showTitles: true,
                         getTitlesWidget: (val, _) {
                           final idx = val.toInt();
-                          if (idx >= 0 && idx < batches.length) {
-                            return Text('B#${idx + 1}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold));
+                          if (idx >= 0 && idx < completedYields.length) {
+                            return Text(completedYields[idx].$1, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold));
                           }
-                          return Text('B#${idx + 1}', style: const TextStyle(fontSize: 10));
+                          return const Text('');
                         },
                       ),
                     ),
                   ),
                   gridData: const FlGridData(show: false),
                   borderData: FlBorderData(show: false),
-                  barGroups: [
-                    BarChartGroupData(x: 0, barRods: [BarChartRodData(toY: 80, color: AppColorScheme.primary, width: 16, borderRadius: BorderRadius.circular(4))]),
-                    BarChartGroupData(x: 1, barRods: [BarChartRodData(toY: 76, color: AppColorScheme.primaryLight, width: 16, borderRadius: BorderRadius.circular(4))]),
-                    BarChartGroupData(x: 2, barRods: [BarChartRodData(toY: 84, color: AppColorScheme.warning, width: 16, borderRadius: BorderRadius.circular(4))]),
-                  ],
+                  barGroups: completedYields.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final item = entry.value;
+                    return BarChartGroupData(
+                      x: idx,
+                      barRods: [
+                        BarChartRodData(
+                          toY: item.$2,
+                          color: idx % 2 == 0 ? AppColorScheme.primary : AppColorScheme.primaryLight,
+                          width: 18,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ],
+                    );
+                  }).toList(),
                 ),
               ),
             ),

@@ -21,6 +21,20 @@ class InventoryMapper {
   }
 
   static InventoryItem fromModel(InventoryItemModel model) {
+    DateTime parseDate(String? s, DateTime fallback) {
+      if (s == null || s.trim().isEmpty) return fallback;
+      try {
+        return DateTime.parse(s);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    final status = InventoryStatus.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.status.trim().toLowerCase(),
+      orElse: () => InventoryStatus.active,
+    );
+
     return InventoryItem(
       id: model.id,
       name: model.name,
@@ -31,10 +45,10 @@ class InventoryMapper {
       maximumQuantity: model.maximumQuantity,
       purchasePrice: model.purchasePrice,
       supplier: model.supplier,
-      purchaseDate: DateTime.parse(model.purchaseDate),
-      expiryDate: model.expiryDate != null ? DateTime.parse(model.expiryDate!) : null,
+      purchaseDate: parseDate(model.purchaseDate, DateTime.now()),
+      expiryDate: model.expiryDate != null ? parseDate(model.expiryDate, DateTime.now()) : null,
       storageLocation: model.storageLocation,
-      status: InventoryStatus.values.firstWhere((e) => e.name == model.status),
+      status: status,
       notes: model.notes,
     );
   }
@@ -59,13 +73,27 @@ class InventoryMapper {
   }
 
   static InventoryTransaction transactionFromModel(InventoryTransactionModel model) {
+    DateTime parseDate(String? s, DateTime fallback) {
+      if (s == null || s.trim().isEmpty) return fallback;
+      try {
+        return DateTime.parse(s);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    final type = TransactionType.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.type.trim().toLowerCase(),
+      orElse: () => TransactionType.consume,
+    );
+
     return InventoryTransaction(
       id: model.id,
       itemId: model.itemId,
       quantity: model.quantity,
-      type: TransactionType.values.firstWhere((e) => e.name == model.type),
+      type: type,
       batchId: model.batchId,
-      date: DateTime.parse(model.date),
+      date: parseDate(model.date, DateTime.now()),
       reason: model.reason,
     );
   }

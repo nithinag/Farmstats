@@ -3,15 +3,34 @@ import '../models/labour_models.dart';
 
 class LabourMapper {
   static LabourWorker fromWorkerModel(LabourWorkerModel model) {
+    DateTime parseDate(String? s, DateTime fallback) {
+      if (s == null || s.trim().isEmpty) return fallback;
+      try {
+        return DateTime.parse(s);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    final role = WorkerRole.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.role.trim().toLowerCase(),
+      orElse: () => WorkerRole.feeder,
+    );
+
+    final status = WorkerStatus.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.status.trim().toLowerCase(),
+      orElse: () => WorkerStatus.active,
+    );
+
     return LabourWorker(
       id: model.id,
       fullName: model.fullName,
       phoneNumber: model.phoneNumber,
       address: model.address,
-      role: WorkerRole.values.firstWhere((e) => e.name == model.role),
+      role: role,
       dailyWage: model.dailyWage,
-      joiningDate: DateTime.parse(model.joiningDate),
-      status: WorkerStatus.values.firstWhere((e) => e.name == model.status),
+      joiningDate: parseDate(model.joiningDate, DateTime.now()),
+      status: status,
       emergencyContact: model.emergencyContact,
       notes: model.notes,
     );
@@ -33,15 +52,29 @@ class LabourMapper {
   }
 
   static Attendance fromAttendanceModel(AttendanceModel model) {
+    DateTime parseDate(String? s, DateTime fallback) {
+      if (s == null || s.trim().isEmpty) return fallback;
+      try {
+        return DateTime.parse(s);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    final leave = LeaveStatus.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.leaveStatus.trim().toLowerCase(),
+      orElse: () => LeaveStatus.none,
+    );
+
     return Attendance(
       id: model.id,
       workerId: model.workerId,
-      date: DateTime.parse(model.date),
-      checkIn: model.checkIn != null ? DateTime.parse(model.checkIn!) : null,
-      checkOut: model.checkOut != null ? DateTime.parse(model.checkOut!) : null,
+      date: parseDate(model.date, DateTime.now()),
+      checkIn: model.checkIn != null ? parseDate(model.checkIn, DateTime.now()) : null,
+      checkOut: model.checkOut != null ? parseDate(model.checkOut, DateTime.now()) : null,
       hoursWorked: model.hoursWorked,
       overtimeHours: model.overtimeHours,
-      leaveStatus: LeaveStatus.values.firstWhere((e) => e.name == model.leaveStatus),
+      leaveStatus: leave,
       remarks: model.remarks,
     );
   }
@@ -61,15 +94,34 @@ class LabourMapper {
   }
 
   static WorkAssignment fromAssignmentModel(WorkAssignmentModel model) {
+    DateTime parseDate(String? s, DateTime fallback) {
+      if (s == null || s.trim().isEmpty) return fallback;
+      try {
+        return DateTime.parse(s);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    final task = TaskType.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.task.trim().toLowerCase(),
+      orElse: () => TaskType.other,
+    );
+
+    final status = AssignmentStatus.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.status.trim().toLowerCase(),
+      orElse: () => AssignmentStatus.pending,
+    );
+
     return WorkAssignment(
       id: model.id,
       workerId: model.workerId,
       batchId: model.batchId,
-      task: TaskType.values.firstWhere((e) => e.name == model.task),
-      startTime: DateTime.parse(model.startTime),
-      endTime: model.endTime != null ? DateTime.parse(model.endTime!) : null,
+      task: task,
+      startTime: parseDate(model.startTime, DateTime.now()),
+      endTime: model.endTime != null ? parseDate(model.endTime, DateTime.now()) : null,
       durationHours: model.durationHours,
-      status: AssignmentStatus.values.firstWhere((e) => e.name == model.status),
+      status: status,
     );
   }
 
@@ -87,6 +139,20 @@ class LabourMapper {
   }
 
   static WageRecord fromWageModel(WageRecordModel model) {
+    DateTime parseDate(String? s, DateTime fallback) {
+      if (s == null || s.trim().isEmpty) return fallback;
+      try {
+        return DateTime.parse(s);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
+    final method = PaymentMethod.values.firstWhere(
+      (e) => e.name.toLowerCase() == model.paymentMethod.trim().toLowerCase(),
+      orElse: () => PaymentMethod.cash,
+    );
+
     return WageRecord(
       id: model.id,
       workerId: model.workerId,
@@ -95,8 +161,8 @@ class LabourMapper {
       bonuses: model.bonuses,
       deductions: model.deductions,
       netPay: model.netPay,
-      paymentDate: DateTime.parse(model.paymentDate),
-      paymentMethod: PaymentMethod.values.firstWhere((e) => e.name == model.paymentMethod),
+      paymentDate: parseDate(model.paymentDate, DateTime.now()),
+      paymentMethod: method,
       referenceNotes: model.referenceNotes,
     );
   }

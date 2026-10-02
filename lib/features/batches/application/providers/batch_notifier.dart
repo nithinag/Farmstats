@@ -28,17 +28,11 @@ final activeBatchProvider = Provider<Batch?>((ref) {
   return batchState.maybeWhen(
     data: (batches) {
       if (batches.isEmpty) return null;
-      try {
-        return batches.firstWhere(
-          (b) => b.status == BatchStatus.active,
-          orElse: () => batches.firstWhere(
-            (b) => b.status != BatchStatus.completed && b.status != BatchStatus.cancelled,
-            orElse: () => batches.first,
-          ),
-        );
-      } catch (_) {
-        return null;
-      }
+      // 1. Find explicit active batch
+      final active = batches.where((b) => b.status == BatchStatus.active).firstOrNull;
+      if (active != null) return active;
+      // 2. Fallback to any non-completed, non-cancelled batch
+      return batches.where((b) => b.status != BatchStatus.completed && b.status != BatchStatus.cancelled).firstOrNull;
     },
     orElse: () => null,
   );
@@ -59,7 +53,15 @@ final nextBatchNumberProvider = Provider<String>((ref) {
   final batchState = ref.watch(batchNotifierProvider);
   return batchState.maybeWhen(
     data: (batches) {
-      final nextNumber = batches.length + 1;
+      int maxNum = 0;
+      for (final b in batches) {
+        final match = RegExp(r'#?(\d+)').firstMatch(b.batchName);
+        if (match != null) {
+          final n = int.tryParse(match.group(1)!) ?? 0;
+          if (n > maxNum) maxNum = n;
+        }
+      }
+      final nextNumber = maxNum > 0 ? maxNum + 1 : (batches.length + 1);
       return '#${nextNumber.toString().padLeft(3, '0')}';
     },
     orElse: () => '#001',

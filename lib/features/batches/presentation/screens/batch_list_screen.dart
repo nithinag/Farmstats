@@ -64,8 +64,8 @@ class _BatchListScreenState extends ConsumerState<BatchListScreen> with SingleTi
       ),
       body: switch (state) {
         BatchStateInitial() || BatchStateLoading() => const DashboardSkeletonLoader(),
-        BatchStateError(message: final m) => ErrorView(
-            error: m,
+        BatchStateError() => ErrorView(
+            error: 'Unable to load batches. Tap to reload your farm data.',
             onRetry: () => ref.read(batchNotifierProvider.notifier).loadBatches(),
           ),
         BatchStateData(batches: final batches) => TabBarView(

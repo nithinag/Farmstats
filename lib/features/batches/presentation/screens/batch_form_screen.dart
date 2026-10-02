@@ -30,6 +30,7 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
   late TextEditingController _nameController;
   late TextEditingController _dflsController;
   late TextEditingController _dflPriceController;
+  late TextEditingController _durationController;
   late TextEditingController _supplierController;
   late TextEditingController _varietyController;
   late TextEditingController _mulberryController;
@@ -47,9 +48,13 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
   @override
   void initState() {
     super.initState();
+    final initialDuration = widget.batch != null
+        ? widget.batch!.expectedHarvestDate.difference(widget.batch!.startDate).inDays
+        : 30;
     _nameController = TextEditingController(text: widget.batch?.batchName ?? '');
     _dflsController = TextEditingController(text: widget.batch?.numberOfDfls.toString() ?? '300');
     _dflPriceController = TextEditingController(text: widget.batch?.dflPrice?.toString() ?? '15');
+    _durationController = TextEditingController(text: initialDuration > 0 ? initialDuration.toString() : '30');
     _supplierController = TextEditingController(text: widget.batch?.eggSource ?? 'Govt CRC (Chawki Rearing Center)');
     _varietyController = TextEditingController(text: widget.batch?.silkwormVariety ?? 'CSR2');
     _mulberryController = TextEditingController(text: widget.batch?.mulberryVariety ?? 'V1');
@@ -71,6 +76,7 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
     _nameController.dispose();
     _dflsController.dispose();
     _dflPriceController.dispose();
+    _durationController.dispose();
     _supplierController.dispose();
     _varietyController.dispose();
     _mulberryController.dispose();
@@ -83,6 +89,7 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
 
   int get _dfls => int.tryParse(_dflsController.text) ?? 0;
   double get _dflPrice => double.tryParse(_dflPriceController.text) ?? 0.0;
+  int get _durationDays => int.tryParse(_durationController.text) ?? 30;
   double get _totalDflCost => _dfls * _dflPrice;
 
   Future<void> _save() async {
@@ -95,7 +102,7 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
         id: batchId,
         batchName: _nameController.text.trim(),
         startDate: _startDate,
-        expectedHarvestDate: _startDate.add(const Duration(days: 28)),
+        expectedHarvestDate: _startDate.add(Duration(days: _durationDays > 0 ? _durationDays : 30)),
         actualHarvestDate: widget.batch?.actualHarvestDate,
         silkwormVariety: _varietyController.text.trim(),
         eggSource: _supplierController.text.trim(),
@@ -268,6 +275,20 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
                 );
                 if (picked != null) setState(() => _startDate = picked);
               },
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Expected Duration
+            TextFormField(
+              controller: _durationController,
+              decoration: const InputDecoration(
+                labelText: 'Cycle Duration (Days)',
+                prefixIcon: Icon(Icons.timer_outlined),
+                border: OutlineInputBorder(),
+                helperText: 'Standard rearing duration (editable, usually 28-32 days)',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter valid duration' : null,
             ),
             const SizedBox(height: AppSpacing.md),
 
