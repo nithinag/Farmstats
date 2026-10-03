@@ -39,8 +39,6 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
   String? _selectedBatchId;
   LabourWorker? _selectedWorker;
 
-  final _paymentMethods = ['Cash', 'UPI', 'Bank Transfer', 'Credit Card'];
-
   final _categories = const [
     ExpenseCategory(id: 'c1', name: 'DFL Cost', colorCode: '#4CAF50', iconName: 'egg'),
     ExpenseCategory(id: 'c2', name: 'Mulberry Leaves', colorCode: '#8BC34A', iconName: 'eco'),
@@ -144,78 +142,105 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
 
     final isLabour = _selectedCategory?.id == 'c4' || _selectedCategory?.name.toLowerCase().contains('labour') == true;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return BaseScaffold(
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Expense' : 'Add Expense'),
-        backgroundColor: AppColorScheme.primary,
-        foregroundColor: Colors.white,
+        title: Text(
+          isEditing ? 'Edit Expense' : 'Add Expense',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        backgroundColor: isDark ? AppColorScheme.backgroundDark : AppColorScheme.backgroundLight,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton(
+              onPressed: _save,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColorScheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+              ),
+              child: const Text('Save Expense', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+        ),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, 40),
           children: [
-            // Batch Linkage
+            // Batch Dropdown Selector
+            Text('Batch', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
             DropdownButtonFormField<String>(
               initialValue: _selectedBatchId,
-              decoration: const InputDecoration(
-                labelText: 'Associated Batch',
-                prefixIcon: Icon(Icons.egg_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                prefixIcon: const Icon(Icons.layers_outlined, size: 20),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
               ),
               items: allBatches.map((b) {
                 final isCurrent = activeBatch?.id == b.id;
                 return DropdownMenuItem(
                   value: b.id,
-                  child: Text('${b.batchName} (${b.numberOfDfls} DFLs) ${isCurrent ? '• Active' : ''}'),
+                  child: Text('${b.batchName} (${b.numberOfDfls} DFLs) ${isCurrent ? '• Active' : ''}', style: const TextStyle(fontSize: 13)),
                 );
               }).toList(),
               onChanged: (v) => setState(() => _selectedBatchId = v),
+              validator: (v) => v == null ? 'Please select a batch' : null,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // Category Picker
-            DropdownButtonFormField<ExpenseCategory>(
-              initialValue: _selectedCategory,
-              decoration: const InputDecoration(
-                labelText: 'Expense Category',
-                prefixIcon: Icon(Icons.category_outlined),
-                border: OutlineInputBorder(),
-              ),
-              items: _categories.map((c) {
-                return DropdownMenuItem(
-                  value: c,
-                  child: Text(c.name),
-                );
-              }).toList(),
-              onChanged: (v) {
-                setState(() {
-                  _selectedCategory = v;
-                  if (v?.id == 'c4' && workers.isNotEmpty) {
-                    _selectedWorker = workers.first;
-                    _amountController.text = _selectedWorker!.dailyWage.toStringAsFixed(0);
-                    _descController.text = 'Labour: ${_selectedWorker!.fullName}';
-                  }
-                });
-              },
+            // Category Selection Grid (Matching Screen 6)
+            Text('Category', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            GridView.count(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisCount: 3,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.25,
+              children: [
+                _categoryTile('c1', 'DFL', Icons.egg_outlined, const Color(0xFFF0FDF4), const Color(0xFF2E7D32)),
+                _categoryTile('c2', 'Feed', Icons.eco_outlined, const Color(0xFFE8F8F5), const Color(0xFF00897B)),
+                _categoryTile('c6', 'Medicine', Icons.medication_outlined, const Color(0xFFFEF9C3), const Color(0xFFD97706)),
+                _categoryTile('c4', 'Labour', Icons.people_outline, const Color(0xFFF0F7FF), const Color(0xFF1E88E5)),
+                _categoryTile('c7', 'Transport', Icons.local_shipping_outlined, const Color(0xFFFFF7ED), const Color(0xFFEA580C)),
+                _categoryTile('c10', 'Other', Icons.more_horiz, const Color(0xFFFAF5FF), const Color(0xFF9333EA)),
+              ],
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // Worker Selector if category is Labour
+            // Worker selection if Labour category chosen
             if (isLabour && workers.isNotEmpty) ...[
+              Text('Worker', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
               DropdownButtonFormField<LabourWorker>(
                 initialValue: _selectedWorker ?? workers.first,
-                decoration: const InputDecoration(
-                  labelText: 'Select Farm Worker',
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white,
+                  prefixIcon: const Icon(Icons.person_outline, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
                 ),
-                items: workers.map((w) {
-                  return DropdownMenuItem(
-                    value: w,
-                    child: Text('${w.fullName} (₹${w.dailyWage.toStringAsFixed(0)}/day)'),
-                  );
-                }).toList(),
+                hint: const Text('Select Worker', style: TextStyle(fontSize: 13)),
+                items: workers.map((w) => DropdownMenuItem(value: w, child: Text(w.fullName, style: const TextStyle(fontSize: 13)))).toList(),
                 onChanged: (w) {
                   if (w != null) {
                     setState(() {
@@ -229,95 +254,133 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
               const SizedBox(height: AppSpacing.md),
             ],
 
-            // Amount & Quantity
+            // Amount & Date Side-by-Side
             Row(
               children: [
                 Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: _amountController,
-                    decoration: const InputDecoration(
-                      labelText: 'Amount (₹)',
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter valid amount' : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Amount (₹)', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      TextFormField(
+                        controller: _amountController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          hintText: '0',
+                          prefixText: '₹ ',
+                          filled: true,
+                          fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                        ),
+                        validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter amount' : null,
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
-                  child: TextFormField(
-                    controller: _quantityController,
-                    decoration: const InputDecoration(
-                      labelText: 'Qty / Units',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Date', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      InkWell(
+                        onTap: () async {
+                          final d = await showDatePicker(
+                            context: context,
+                            initialDate: _selectedDate,
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now().add(const Duration(days: 30)),
+                          );
+                          if (d != null) setState(() => _selectedDate = d);
+                        },
+                        child: Container(
+                          height: 48,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                            border: Border.all(color: AppColorScheme.cardBorderLight),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey),
+                              const SizedBox(width: 8),
+                              Text(DateFormat('dd MMM yyyy').format(_selectedDate), style: const TextStyle(fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // Date
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              leading: const Icon(Icons.calendar_today, color: AppColorScheme.primaryLight),
-              title: const Text('Expense Date'),
-              subtitle: Text(DateFormat('dd MMMM yyyy').format(_selectedDate)),
-              trailing: const Icon(Icons.edit, size: 18),
-              onTap: () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: _selectedDate,
-                  firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 30)),
-                );
-                if (picked != null) setState(() => _selectedDate = picked);
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Description
+            // Notes (Optional)
+            Text('Notes (Optional)', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
             TextFormField(
               controller: _descController,
-              decoration: const InputDecoration(
-                labelText: 'Description / Purpose',
-                prefixIcon: Icon(Icons.notes),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: 'e.g. 300 DFLs purchased from Mandi',
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
               ),
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter description' : null,
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.xxl),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Payment Method
-            DropdownButtonFormField<String>(
-              initialValue: _paymentMethod,
-              decoration: const InputDecoration(
-                labelText: 'Payment Method',
-                prefixIcon: Icon(Icons.payment),
-                border: OutlineInputBorder(),
-              ),
-              items: _paymentMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-              onChanged: (v) => setState(() => _paymentMethod = v!),
-            ),
-            const SizedBox(height: AppSpacing.xl),
+  Widget _categoryTile(String id, String label, IconData icon, Color bgColor, Color iconColor) {
+    final isSelected = _selectedCategory?.id == id;
 
-            // Save Button
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: _save,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColorScheme.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                ),
-                child: const Text('SAVE EXPENSE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+    return InkWell(
+      onTap: () {
+        final cat = _categories.firstWhere((c) => c.id == id, orElse: () => _categories[0]);
+        setState(() => _selectedCategory = cat);
+      },
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected ? iconColor : Colors.transparent,
+            width: isSelected ? 2.0 : 1.0,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: iconColor.withValues(alpha: 0.2),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  )
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: iconColor, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                color: isSelected ? iconColor : Colors.grey.shade800,
               ),
             ),
           ],

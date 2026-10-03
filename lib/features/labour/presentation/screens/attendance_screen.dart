@@ -4,9 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' hide Column, Table, Batch;
-import '../../../../shared/widgets/layout_components.dart';
 import '../../../../core/theme/spacing.dart';
-import '../../../../core/theme/radius.dart';
 import '../../../../core/theme/color_scheme.dart';
 import '../../domain/entities/labour_entities.dart';
 import '../../application/providers/labour_notifier.dart';
@@ -35,8 +33,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String? _selectedBatchId;
   DateTime _selectedDate = DateTime.now();
   String _task = 'Silkworm Feeding & Bed Cleaning';
-  String _paymentStatus = 'Paid'; // Paid, Partially Paid, Unpaid
-  String _paymentMethod = 'Cash';
+  String _paymentStatus = 'Paid'; // Paid, Unpaid, Partial
+  final String _paymentMethod = 'Cash';
 
   late TextEditingController _wageController;
   late TextEditingController _remarksController;
@@ -51,9 +49,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     'General Farm Maintenance',
     'Other Task',
   ];
-
-  final _paymentStatuses = ['Paid', 'Partially Paid', 'Unpaid'];
-  final _paymentMethods = ['Cash', 'UPI', 'Bank Transfer'];
 
   @override
   void initState() {
@@ -207,10 +202,59 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       _wageController.text = _selectedWorker!.dailyWage.toStringAsFixed(0);
     }
 
-    return BaseScaffold(
+    return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Log Labour & Attendance'),
+        backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text(
+          'Add Labour',
+          style: TextStyle(
+            color: Color(0xFF1E293B),
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          height: 52,
+          child: ElevatedButton(
+            onPressed: (_isSaving || workers.isEmpty) ? null : _saveLabour,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColorScheme.forestGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                  )
+                : const Text(
+                    'Save Labour',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+          ),
+        ),
       ),
       body: workers.isEmpty
           ? Center(
@@ -219,24 +263,35 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.people_outline, size: 56, color: Colors.grey),
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: AppColorScheme.pastelBlue,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Icon(Icons.people_outline, size: 36, color: Color(0xFF0369A1)),
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     const Text(
                       'No Workers Added Yet',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     const Text(
-                      'Add your farm workers first before logging daily labour activities and wages.',
+                      'Add your farm workers first to log daily labour activities and wages.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey),
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
                     ),
                     const SizedBox(height: AppSpacing.lg),
                     FilledButton.icon(
                       onPressed: () => context.push('/labour/add'),
-                      icon: const Icon(Icons.person_add),
+                      icon: const Icon(Icons.person_add, size: 18),
                       label: const Text('Add Worker'),
-                      style: FilledButton.styleFrom(backgroundColor: AppColorScheme.primary),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColorScheme.forestGreen,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
                     ),
                   ],
                 ),
@@ -247,100 +302,162 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
-                  // 1. Worker Selection Card
-                  Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      side: BorderSide(color: Colors.grey.shade300),
+                  // 1. Batch Selection
+                  const Text(
+                    'Batch',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'FARM WORKER',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey),
-                              ),
-                              TextButton.icon(
-                                onPressed: () => context.push('/labour/add'),
-                                icon: const Icon(Icons.add, size: 14),
-                                label: const Text('New Worker', style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                          DropdownButtonFormField<LabourWorker>(
-                            initialValue: _selectedWorker,
-                            decoration: const InputDecoration(
-                              prefixIcon: Icon(Icons.person, color: AppColorScheme.primaryLight),
-                              border: OutlineInputBorder(),
-                            ),
-                            items: workers.map((w) {
-                              return DropdownMenuItem(
-                                value: w,
-                                child: Text('${w.fullName} • ₹${w.dailyWage.toStringAsFixed(0)}/day'),
-                              );
-                            }).toList(),
-                            onChanged: (w) {
-                              if (w != null) {
-                                setState(() {
-                                  _selectedWorker = w;
-                                  _wageController.text = w.dailyWage.toStringAsFixed(0);
-                                });
-                              }
-                            },
-                          ),
-                        ],
+                    child: DropdownButtonFormField<String>(
+                      initialValue: _selectedBatchId,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.layers_outlined, color: AppColorScheme.forestGreen, size: 20),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       ),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                      items: allBatches.map((b) {
+                        final isCurrent = activeBatch?.id == b.id;
+                        return DropdownMenuItem(
+                          value: b.id,
+                          child: Text(
+                            '${b.batchName}${isCurrent ? ' (Active)' : ''}',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1E293B)),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (b) => setState(() => _selectedBatchId = b),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
 
-                  // 2. Batch Association & Date
-                  Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      side: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'BATCH & DATE',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedBatchId,
-                            decoration: const InputDecoration(
-                              labelText: 'Associated Batch',
-                              prefixIcon: Icon(Icons.layers_outlined),
-                              border: OutlineInputBorder(),
+                  // 2. Worker & Work Type
+                  Row(
+                    children: [
+                      // Worker Selector
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Worker',
+                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                                ),
+                                GestureDetector(
+                                  onTap: () => context.push('/labour/add'),
+                                  child: const Icon(Icons.add_circle_outline, size: 18, color: AppColorScheme.forestGreen),
+                                ),
+                              ],
                             ),
-                            items: allBatches.map((b) {
-                              final isCurrent = activeBatch?.id == b.id;
-                              return DropdownMenuItem(
-                                value: b.id,
-                                child: Text('${b.batchName} (${b.numberOfDfls} DFLs) ${isCurrent ? '• Active' : ''}'),
-                              );
-                            }).toList(),
-                            onChanged: (b) => setState(() => _selectedBatchId = b),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: const Icon(Icons.calendar_today, color: AppColorScheme.primaryLight),
-                            title: const Text('Activity Date'),
-                            subtitle: Text(DateFormat('dd MMMM yyyy').format(_selectedDate)),
-                            trailing: OutlinedButton(
-                              onPressed: () async {
+                            const SizedBox(height: 6),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonFormField<LabourWorker>(
+                                initialValue: _selectedWorker,
+                                decoration: const InputDecoration(
+                                  prefixIcon: Icon(Icons.person_outline, color: Color(0xFF64748B), size: 18),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                ),
+                                isExpanded: true,
+                                icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                                items: workers.map((w) {
+                                  return DropdownMenuItem(
+                                    value: w,
+                                    child: Text(
+                                      w.fullName,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (w) {
+                                  if (w != null) {
+                                    setState(() {
+                                      _selectedWorker = w;
+                                      _wageController.text = w.dailyWage.toStringAsFixed(0);
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      // Work Type Selector
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Work Type',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: DropdownButtonFormField<String>(
+                                initialValue: _task,
+                                decoration: const InputDecoration(
+                                  prefixIcon: Icon(Icons.work_outline, color: Color(0xFF64748B), size: 18),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                                ),
+                                isExpanded: true,
+                                icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                                items: _tasks.map((t) {
+                                  final shortLabel = t.length > 18 ? '${t.substring(0, 16)}...' : t;
+                                  return DropdownMenuItem(
+                                    value: t,
+                                    child: Text(
+                                      shortLabel,
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                    ),
+                                  );
+                                }).toList(),
+                                onChanged: (t) => setState(() => _task = t ?? _tasks[0]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // 3. Date & Amount (Side-by-side)
+                  Row(
+                    children: [
+                      // Date Selector
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Date',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                            ),
+                            const SizedBox(height: 6),
+                            InkWell(
+                              onTap: () async {
                                 final d = await showDatePicker(
                                   context: context,
                                   initialDate: _selectedDate,
@@ -349,103 +466,139 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                 );
                                 if (d != null) setState(() => _selectedDate = d);
                               },
-                              child: const Text('Change'),
+                              child: Container(
+                                height: 50,
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.calendar_today_outlined, size: 18, color: Color(0xFF64748B)),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      DateFormat('dd MMM yyyy').format(_selectedDate),
+                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      // Wage Amount
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Amount (₹)',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: TextFormField(
+                                controller: _wageController,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: const InputDecoration(
+                                  prefixIcon: Icon(Icons.currency_rupee, size: 18, color: Color(0xFF64748B)),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                                ),
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1E293B)),
+                                validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter valid wage' : null,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+
+                  // 4. Payment Status Segmented Control
+                  const Text(
+                    'Payment Status',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: ['Paid', 'Unpaid', 'Partial'].map((status) {
+                        final isSelected = _paymentStatus == status;
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _paymentStatus = status),
+                            child: Container(
+                              margin: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.white : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.06),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        )
+                                      ]
+                                    : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                  color: isSelected ? const Color(0xFF1E293B) : const Color(0xFF64748B),
+                                ),
+                              ),
                             ),
                           ),
-                        ],
-                      ),
+                        );
+                      }).toList(),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
 
-                  // 3. Task & Wage
-                  Card(
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      side: BorderSide(color: Colors.grey.shade300),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'WORK & WAGE DETAILS',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          DropdownButtonFormField<String>(
-                            initialValue: _task,
-                            decoration: const InputDecoration(
-                              labelText: 'Work / Task Type',
-                              prefixIcon: Icon(Icons.work_outline),
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _tasks.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                            onChanged: (t) => setState(() => _task = t ?? _tasks[0]),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          TextFormField(
-                            controller: _wageController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Wage / Amount to Pay (₹) *',
-                              prefixIcon: Icon(Icons.currency_rupee),
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter valid wage amount' : null,
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _paymentStatus,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Payment Status',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _paymentStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                                  onChanged: (s) => setState(() => _paymentStatus = s ?? 'Paid'),
-                                ),
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: _paymentMethod,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Payment Mode',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  items: _paymentMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                                  onChanged: (m) => setState(() => _paymentMethod = m ?? 'Cash'),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                  // 5. Notes (Optional)
+                  const Text(
+                    'Notes (Optional)',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                   ),
-                  const SizedBox(height: AppSpacing.lg),
-
-                  // Submit Button
-                  SizedBox(
-                    height: 50,
-                    child: FilledButton.icon(
-                      onPressed: _isSaving ? null : _saveLabour,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColorScheme.primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                  const SizedBox(height: 6),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: TextFormField(
+                      controller: _remarksController,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        hintText: 'Add notes...',
+                        hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
+                        prefixIcon: Icon(Icons.edit_note, color: Color(0xFF94A3B8), size: 20),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.all(12),
                       ),
-                      icon: _isSaving
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Icon(Icons.check),
-                      label: Text(
-                        _isSaving ? 'Saving...' : 'RECORD LABOUR ENTRY',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xl),

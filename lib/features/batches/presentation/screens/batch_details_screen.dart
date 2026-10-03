@@ -174,15 +174,26 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
     final costPerKg = totalYieldKg > 0 ? (totalExpenses / totalYieldKg) : 0.0;
     final revPerKg = totalYieldKg > 0 ? (totalRevenue / totalYieldKg) : 0.0;
     final isCompleted = currentBatch.status == BatchStatus.completed;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return BaseScaffold(
       appBar: AppBar(
+        backgroundColor: isDark ? AppColorScheme.backgroundDark : AppColorScheme.backgroundLight,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
         title: DropdownButtonHideUnderline(
           child: DropdownButton<String>(
             value: _currentBatchId,
-            dropdownColor: AppColorScheme.primary,
-            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+            dropdownColor: isDark ? AppColorScheme.surfaceContainerDark : Colors.white,
+            icon: const Icon(Icons.keyboard_arrow_down),
+            style: TextStyle(
+              color: isDark ? Colors.white : const Color(0xFF111827),
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
             items: allBatches.map((b) {
               final isAct = b.status == BatchStatus.active;
               return DropdownMenuItem(
@@ -190,8 +201,9 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
                 child: Text(
                   '${b.batchName} (${isAct ? "Active" : "Completed"})',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: isDark ? Colors.white : const Color(0xFF111827),
                     fontWeight: b.id == _currentBatchId ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 15,
                   ),
                 ),
               );
@@ -201,17 +213,15 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
             },
           ),
         ),
-        backgroundColor: AppColorScheme.primary,
-        foregroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit_outlined),
+            icon: const Icon(Icons.edit_outlined, size: 20),
             tooltip: 'Edit Batch',
             onPressed: () => context.push('/batch/${currentBatch.id}/edit', extra: currentBatch),
           ),
           if (!isCompleted)
             IconButton(
-              icon: const Icon(Icons.check_circle_outline),
+              icon: const Icon(Icons.check_circle_outline, color: AppColorScheme.primary, size: 22),
               tooltip: 'Complete Batch',
               onPressed: () => _showCompleteBatchDialog(
                 context,
@@ -221,30 +231,59 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
                 totalYieldKg,
               ),
             ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
+      bottomNavigationBar: !isCompleted
+          ? SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: FilledButton.icon(
+                    onPressed: () => _showAddActivityBottomSheet(context, currentBatch),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColorScheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                    ),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('+ Add Activity', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  ),
+                ),
+              ),
+            )
+          : null,
       body: Column(
         children: [
-          // 1. Batch Hero Capsule
-          _buildHeroHeader(context, currentBatch, totalExpenses, batchLabourCost, totalRevenue, profit, currency),
+          // 1. Batch Header (Title, Pill, Day & Circular Progress)
+          _buildHeroHeader(context, currentBatch, totalExpenses, batchLabourCost, totalRevenue, profit, currency, isCompleted),
 
-          // 2. 4 Focused Tabs
+          // 2. 4 Modern Tab Pills
           Container(
-            color: Theme.of(context).colorScheme.surface,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 6),
+            color: isDark ? AppColorScheme.surfaceContainerDark : AppColorScheme.backgroundLight,
             child: TabBar(
               controller: _tabController,
-              labelColor: AppColorScheme.primary,
-              indicatorColor: AppColorScheme.primaryLight,
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              indicator: BoxDecoration(
+                color: AppColorScheme.primary,
+                borderRadius: BorderRadius.circular(AppRadius.pill),
+              ),
+              labelColor: Colors.white,
+              unselectedLabelColor: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
               tabs: const [
                 Tab(text: 'Overview'),
                 Tab(text: 'Timeline'),
                 Tab(text: 'Operations'),
-                Tab(text: 'Financials'),
+                Tab(text: 'Finance'),
               ],
             ),
           ),
 
-          // 3. Tab Views
+          // 3. Tab Content
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -255,16 +294,78 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
                 // TAB 2: TIMELINE
                 _buildTimelineTab(currentBatch.id),
 
-                // TAB 3: OPERATIONS (Labour, Feeding, Health)
+                // TAB 3: OPERATIONS
                 _buildOperationsTab(context, currentBatch, feedingState, currency),
 
-                // TAB 4: FINANCIALS (Expenses, Sales, Profitability)
+                // TAB 4: FINANCE
                 _buildFinancialsTab(currentBatch, totalExpenses, totalRevenue, profit, totalYieldKg, costPerKg, revPerKg, currency, batchExpenses, batchIncomes),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  void _showAddActivityBottomSheet(BuildContext context, Batch batch) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Add Activity to ${batch.batchName}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                ListTile(
+                  leading: const CircleAvatar(backgroundColor: Color(0xFFF0FDF4), child: Icon(Icons.sell_outlined, color: Color(0xFF2E7D32))),
+                  title: const Text('Record Cocoon Sale', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Harvest weight, rate & payment'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.push('/cocoon-sale', extra: batch.id);
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(backgroundColor: Color(0xFFFFF1F0), child: Icon(Icons.receipt_long_outlined, color: Color(0xFFE53935))),
+                  title: const Text('Add Expense', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('DFL, feed, chemicals, etc.'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.push('/expenses/add', extra: batch.id);
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(backgroundColor: Color(0xFFF0F7FF), child: Icon(Icons.people_outline, color: Color(0xFF1E88E5))),
+                  title: const Text('Log Labour & Attendance', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Worker wages & tasks'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.push('/labour/attendance', extra: batch.id);
+                  },
+                ),
+                ListTile(
+                  leading: const CircleAvatar(backgroundColor: Color(0xFFFEF9C3), child: Icon(Icons.eco_outlined, color: Color(0xFFF59E0B))),
+                  title: const Text('Log Feeding & Health', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Mulberry leaf feeding logs'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.push('/feeding/add', extra: batch.id);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -276,99 +377,78 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
     double revenue,
     double profit,
     NumberFormat currency,
+    bool isCompleted,
   ) {
     final durationDays = batch.expectedHarvestDate.difference(batch.startDate).inDays;
     final totalDuration = durationDays > 0 ? durationDays : 30;
     final currentDay = batch.currentAgeDays > 0 ? batch.currentAgeDays : (DateTime.now().difference(batch.startDate).inDays + 1);
     final progress = (currentDay / totalDuration.toDouble()).clamp(0.0, 1.0);
-    final isCompleted = batch.status == BatchStatus.completed;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       width: double.infinity,
-      color: AppColorScheme.primary,
-      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      color: isDark ? AppColorScheme.backgroundDark : AppColorScheme.backgroundLight,
+      padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, AppSpacing.md, AppSpacing.sm),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                children: [
+                  Text(
+                    batch.batchName,
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 22),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isCompleted ? Colors.amber.shade100 : const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(AppRadius.pill),
+                    ),
+                    child: Text(
+                      isCompleted ? 'Completed' : 'Active',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: isCompleted ? Colors.amber.shade900 : const Color(0xFF2E7D32),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
               Text(
                 isCompleted
-                    ? '✓ $totalDuration DAYS COMPLETED'
-                    : 'Day ${currentDay.toString().padLeft(2, '0')} / $totalDuration • ${batch.currentStage.name.toUpperCase()} INSTAR',
-                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: isCompleted ? Colors.amber.shade700 : Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppRadius.pill),
-                ),
-                child: Text(
-                  isCompleted ? '✓ ARCHIVED' : '● ACTIVE',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                ),
+                    ? '28 Days Completed • ${batch.numberOfDfls} DFLs'
+                    : 'Day $currentDay / $totalDuration • ${batch.numberOfDfls} DFLs',
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
               ),
             ],
           ),
-          if (!isCompleted) ...[
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 4,
-                backgroundColor: Colors.white24,
-                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF81C784)),
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-
-          // Mini Metric Cards
-          Row(
-            children: [
-              Expanded(child: _headerCard('Expenses', currency.format(expenses), Colors.red.shade100)),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(child: _headerCard('Labour', currency.format(labour), Colors.blue.shade100)),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(child: _headerCard('Revenue', currency.format(revenue), Colors.green.shade100)),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _headerCard(
-                  'Profit',
-                  currency.format(profit),
-                  profit >= 0 ? Colors.green.shade200 : Colors.red.shade200,
-                  isBold: true,
+          // Circular Progress Indicator Ring
+          if (!isCompleted)
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: CircularProgressIndicator(
+                    value: progress,
+                    strokeWidth: 4,
+                    backgroundColor: const Color(0xFFE5E9E6),
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColorScheme.primary),
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _headerCard(String label, String value, Color bgColor, {bool isBold = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Column(
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10)),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              fontSize: 11,
+                Text(
+                  '${(progress * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
+                ),
+              ],
             ),
-          ),
         ],
       ),
     );
@@ -388,146 +468,120 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
       children: [
-        // 1. Quick Actions Bar
-        Text(
-          'Quick Actions for ${batch.batchName}',
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
-        const SizedBox(height: AppSpacing.xs),
+        // 4 KPI Metric Cards in a Row (Matching Reference Screen 3)
         Row(
           children: [
-            Expanded(
-              child: _actionBtn(
-                icon: Icons.receipt_long,
-                label: '+ Expense',
-                color: AppColorScheme.error,
-                onTap: () => context.push('/expenses/add', extra: batch.id),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: _actionBtn(
-                icon: Icons.people_outline,
-                label: '+ Labour',
-                color: const Color(0xFF1565C0),
-                onTap: () => context.push('/labour/attendance', extra: batch.id),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: _actionBtn(
-                icon: Icons.eco_outlined,
-                label: '+ Feeding',
-                color: const Color(0xFF2E7D32),
-                onTap: () => context.push('/feeding/add', extra: batch.id),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Expanded(
-              child: _actionBtn(
-                icon: Icons.payments,
-                label: '+ Cocoon Sale',
-                color: const Color(0xFF2E7D32),
-                onTap: () => context.push('/cocoon-sale', extra: batch.id),
-              ),
-            ),
+            Expanded(child: _kpiPillCard('DFLs', '${batch.numberOfDfls}', Icons.layers_outlined, AppColorScheme.primary)),
+            const SizedBox(width: 8),
+            Expanded(child: _kpiPillCard('Expenses', currency.format(expenses), Icons.receipt_long_outlined, const Color(0xFFE53935))),
+            const SizedBox(width: 8),
+            Expanded(child: _kpiPillCard('Labour', currency.format(labour), Icons.people_outline, const Color(0xFF1E88E5))),
+            const SizedBox(width: 8),
+            Expanded(child: _kpiPillCard('Revenue', currency.format(revenue), Icons.storefront_outlined, const Color(0xFF2E7D32))),
           ],
         ),
         const SizedBox(height: AppSpacing.lg),
 
-        // 2. Batch Specifications Card
-        Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            side: BorderSide(color: Colors.grey.shade300),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('BATCH METRICS & DATES', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _specItem('DFLs Quantity', '${batch.numberOfDfls} DFLs'),
-                    _specItem('Started On', DateFormat('dd MMM yyyy').format(batch.startDate)),
-                    _specItem('Expected End', DateFormat('dd MMM yyyy').format(batch.expectedHarvestDate)),
-                  ],
-                ),
-                const Divider(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _specItem('Harvest Yield', '${yieldKg.toStringAsFixed(1)} kg'),
-                    _specItem('Total Incurred Cost', currency.format(expenses)),
-                    _specItem('Net Margin', currency.format(profit), color: profit >= 0 ? AppColorScheme.success : AppColorScheme.error),
-                  ],
-                ),
-              ],
+        // Recent Activity Section
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Activity',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
-          ),
+            InkWell(
+              onTap: () => _tabController.animateTo(1),
+              child: const Text(
+                'View all',
+                style: TextStyle(color: AppColorScheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.sm),
 
-        // 3. Recent Expenses for this batch
-        Text('Recent Expenses (${batchExpenses.length})', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-        const SizedBox(height: AppSpacing.xs),
+        // Activity List Tiles
         if (batchExpenses.isEmpty)
-          const Text('No expenses recorded for this batch yet.', style: TextStyle(color: Colors.grey, fontSize: 12))
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColorScheme.cardBorderLight),
+            ),
+            child: const Center(
+              child: Text(
+                'No activity logged yet.\nTap "+ Add Activity" below to record feeding, labour, or expenses.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ),
+          )
         else
-          ...batchExpenses.take(4).map((e) => ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: AppColorScheme.primaryLight.withValues(alpha: 0.15),
-                  child: const Icon(Icons.receipt, size: 16, color: AppColorScheme.primary),
+          ...batchExpenses.take(5).map((e) => Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColorScheme.cardBorderLight),
                 ),
-                title: Text(e.description, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                subtitle: Text(DateFormat('dd MMM yyyy').format(e.date), style: const TextStyle(fontSize: 11)),
-                trailing: Text(currency.format(e.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: e.category.id == 'c4'
+                          ? const Color(0xFFF0F7FF)
+                          : const Color(0xFFFFF1F0),
+                      child: Icon(
+                        e.category.id == 'c4' ? Icons.people_outline : Icons.receipt_long_outlined,
+                        size: 16,
+                        color: e.category.id == 'c4' ? const Color(0xFF1E88E5) : const Color(0xFFE53935),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(e.description, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text(DateFormat('dd MMM yyyy').format(e.date), style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      currency.format(e.amount),
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ],
+                ),
               )),
       ],
     );
   }
 
-  Widget _specItem(String label, String value, {Color? color}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color ?? Colors.black87)),
-      ],
-    );
-  }
-
-  Widget _actionBtn({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
-          ],
-        ),
+  Widget _kpiPillCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColorScheme.cardBorderLight),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -542,7 +596,7 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
           .get(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: AppColorScheme.forestGreen));
         }
 
         final events = snapshot.data ?? [];
@@ -571,7 +625,7 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
                   children: [
                     const CircleAvatar(
                       radius: 12,
-                      backgroundColor: AppColorScheme.primary,
+                      backgroundColor: AppColorScheme.forestGreen,
                       child: Icon(Icons.check, size: 12, color: Colors.white),
                     ),
                     if (index < events.length - 1)
@@ -605,9 +659,12 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
     NumberFormat currency,
   ) {
     final expenseState = ref.watch(expenseNotifierProvider);
-    final List<Expense> batchLabour = (expenseState is ExpenseStateData)
-        ? expenseState.expenses.where((e) => e.batchId == batch.id && (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour'))).toList()
-        : <Expense>[];
+    final List<Expense> batchLabour = switch (expenseState) {
+      ExpenseStateData(expenses: final list) => list
+          .where((e) => e.batchId == batch.id && (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour')))
+          .toList(),
+      _ => <Expense>[],
+    };
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -662,7 +719,7 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
             side: BorderSide(color: Colors.grey.shade200),
           ),
           child: ListTile(
-            leading: const Icon(Icons.eco, color: AppColorScheme.primary),
+            leading: const Icon(Icons.eco, color: AppColorScheme.forestGreen),
             title: Text('Stage: ${batch.currentStage.name.toUpperCase()} INSTAR'),
             subtitle: const Text('Regular feeding schedule active'),
             trailing: FilledButton.tonal(
@@ -747,7 +804,7 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
                     '${DateFormat('dd MMM yyyy').format(i.saleDate)} • Rate: ₹${i.rate.toStringAsFixed(0)}/kg • Status: ${i.paymentStatus}',
                     style: const TextStyle(fontSize: 11),
                   ),
-                  trailing: Text(currency.format(i.netAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColorScheme.primary)),
+                  trailing: Text(currency.format(i.netAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: AppColorScheme.forestGreen)),
                 ),
               )),
         const SizedBox(height: AppSpacing.lg),
@@ -772,6 +829,17 @@ class _BatchDetailsScreenState extends ConsumerState<BatchDetailsScreen> with Si
                   trailing: Text(currency.format(e.amount), style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               )),
+      ],
+    );
+  }
+
+  Widget _specItem(String label, String value, {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: color ?? Colors.black87)),
       ],
     );
   }

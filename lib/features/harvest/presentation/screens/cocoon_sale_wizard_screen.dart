@@ -58,11 +58,10 @@ class _CocoonSaleWizardScreenState extends ConsumerState<CocoonSaleWizardScreen>
   late TextEditingController _remarksController;
 
   String _paymentStatus = 'Paid'; // Paid, Partially Paid, Pending
-  String _paymentMode = 'Cash'; // Cash, UPI, Bank Transfer, Cheque
+  final String _paymentMode = 'Cash'; // Cash, UPI, Bank Transfer, Cheque
   bool _isSaving = false;
 
   final _paymentStatuses = ['Paid', 'Partially Paid', 'Pending'];
-  final _paymentModes = ['Cash', 'UPI', 'Bank Transfer', 'Cheque'];
 
   @override
   void initState() {
@@ -320,381 +319,409 @@ class _CocoonSaleWizardScreenState extends ConsumerState<CocoonSaleWizardScreen>
       _selectedBatchId = activeBatch.id;
     }
 
+    final selectedBatch = allBatches.where((b) => b.id == _selectedBatchId).firstOrNull ?? activeBatch;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return BaseScaffold(
       appBar: AppBar(
-        title: const Text('Record Cocoon Sale'),
+        title: const Text(
+          'Cocoon Sale',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        backgroundColor: isDark ? AppColorScheme.backgroundDark : AppColorScheme.backgroundLight,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton.icon(
+              onPressed: _isSaving ? null : _confirmSale,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColorScheme.forestGreen,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+              ),
+              icon: _isSaving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.check, size: 20),
+              label: Text(_isSaving ? 'Saving...' : '✓ Save Sale', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ),
+          ),
+        ),
       ),
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, AppSpacing.xs, AppSpacing.md, 40),
           children: [
-            // 1. BATCH & BUYER CARD
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              child: Padding(
+            // Top Batch Indicator Card
+            if (selectedBatch != null)
+              Container(
                 padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'BATCH & BUYER',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-
-                    // Batch Selector
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedBatchId,
-                      decoration: const InputDecoration(
-                        labelText: 'Select Batch *',
-                        prefixIcon: Icon(Icons.layers_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: allBatches.map((b) {
-                        final isCurrent = activeBatch?.id == b.id;
-                        return DropdownMenuItem(
-                          value: b.id,
-                          child: Text('${b.batchName} (${b.numberOfDfls} DFLs) ${isCurrent ? '• Active' : ''}'),
-                        );
-                      }).toList(),
-                      onChanged: (v) => setState(() => _selectedBatchId = v),
-                      validator: (v) => v == null ? 'Please select a batch' : null,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    // Buyer Selector
-                    buyersAsync.when(
-                      data: (buyers) {
-                        if (_selectedBuyer == null && buyers.isNotEmpty) {
-                          _selectedBuyer = buyers.first;
-                        }
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: DropdownButtonFormField<Buyer>(
-                                initialValue: _selectedBuyer,
-                                decoration: const InputDecoration(
-                                  labelText: 'Buyer / Cocoon Market *',
-                                  prefixIcon: Icon(Icons.storefront_outlined),
-                                  border: OutlineInputBorder(),
-                                ),
-                                items: buyers.map((b) => DropdownMenuItem(value: b, child: Text(b.name, overflow: TextOverflow.ellipsis))).toList(),
-                                onChanged: (b) => setState(() => _selectedBuyer = b),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            IconButton.outlined(
-                              icon: const Icon(Icons.add),
-                              tooltip: 'Add Buyer',
-                              onPressed: _showAddBuyerDialog,
-                            ),
-                          ],
-                        );
-                      },
-                      loading: () => const LinearProgressIndicator(),
-                      error: (_, __) => const Text('Failed to load buyers'),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    // Date
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.calendar_today, color: AppColorScheme.primaryLight),
-                      title: const Text('Sale Date'),
-                      subtitle: Text(DateFormat('dd MMMM yyyy').format(_saleDate)),
-                      trailing: OutlinedButton(
-                        onPressed: () async {
-                          final d = await showDatePicker(
-                            context: context,
-                            initialDate: _saleDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime.now().add(const Duration(days: 30)),
-                          );
-                          if (d != null) setState(() => _saleDate = d);
-                        },
-                        child: const Text('Change'),
-                      ),
-                    ),
-                  ],
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColorScheme.cardBorderLight),
                 ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // 2. WEIGHT & RATE CARD
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    const Text(
-                      'HARVEST WEIGHT & RATE',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _grossWeightController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Gross Weight (kg) *',
-                              prefixIcon: Icon(Icons.scale_outlined),
-                              border: OutlineInputBorder(),
-                            ),
-                            validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter weight' : null,
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _tareWeightController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Tare (kg)',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-
-                    // Net Weight Pill
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 8),
+                      width: 42,
+                      height: 42,
                       decoration: BoxDecoration(
                         color: const Color(0xFFE8F5E9),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        border: Border.all(color: const Color(0xFFC8E6C9)),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: const Icon(Icons.spa_outlined, color: Color(0xFF2E7D32), size: 22),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Net Cocoon Weight:', style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1B5E20))),
                           Text(
-                            '${netWeight.toStringAsFixed(2)} kg',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1B5E20)),
+                            selectedBatch.batchName,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          ),
+                          Text(
+                            'Day ${selectedBatch.currentAgeDays > 0 ? selectedBatch.currentAgeDays : 25} / 30 • ${selectedBatch.numberOfDfls} DFLs',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
-
-                    // Rate & Gross Amount
-                    TextFormField(
-                      controller: _rateController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Market Rate (₹ / kg) *',
-                        prefixIcon: Icon(Icons.currency_rupee),
-                        hintText: 'e.g. 580',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter rate per kg' : null,
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Gross Cocoon Value:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                        Text(
-                          currency.format(grossAmount),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
-            ),
             const SizedBox(height: AppSpacing.md),
 
-            // 3. DEDUCTIONS CARD
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
+            // Buyer Selector with Quick Add
+            buyersAsync.when(
+              data: (buyers) {
+                if (_selectedBuyer == null && buyers.isNotEmpty) {
+                  _selectedBuyer = buyers.first;
+                }
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'MARKET CHARGES & DEDUCTIONS',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
+                    Text('Buyer', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         Expanded(
-                          child: TextFormField(
-                            controller: _commissionController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Commission (₹)',
-                              border: OutlineInputBorder(),
+                          child: DropdownButtonFormField<Buyer>(
+                            initialValue: _selectedBuyer,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.white,
+                              prefixIcon: const Icon(Icons.person_outline, size: 20),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
                             ),
+                            items: buyers.map((b) => DropdownMenuItem(value: b, child: Text(b.name, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
+                            onChanged: (b) => setState(() => _selectedBuyer = b),
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: TextFormField(
-                            controller: _transportController,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Transport (₹)',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
+                        const SizedBox(width: 8),
+                        IconButton.filledTonal(
+                          icon: const Icon(Icons.add, size: 20, color: AppColorScheme.primary),
+                          tooltip: 'Add Buyer',
+                          onPressed: _showAddBuyerDialog,
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    TextFormField(
-                      controller: _otherDeductionsController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Market / Other Charges (₹)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
                   ],
-                ),
-              ),
+                );
+              },
+              loading: () => const LinearProgressIndicator(),
+              error: (_, __) => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // 4. NET REVENUE HERO SUMMARY
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1B5E20), Color(0xFF2E7D32)],
+            // Date Picker Row
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Date', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 4),
+                InkWell(
+                  onTap: () async {
+                    final d = await showDatePicker(
+                      context: context,
+                      initialDate: _saleDate,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime.now().add(const Duration(days: 30)),
+                    );
+                    if (d != null) setState(() => _saleDate = d);
+                  },
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      border: Border.all(color: AppColorScheme.cardBorderLight),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.calendar_today_outlined, size: 18, color: Colors.grey),
+                        const SizedBox(width: 10),
+                        Text(DateFormat('dd MMM yyyy').format(_saleDate), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  ),
                 ),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Gross Weight & Tare Weight Side-by-Side
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('NET REVENUE TO RECEIVE', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-                      Text(
-                        currency.format(netRevenue),
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 24),
+                      Text('Gross Weight (kg)', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      TextFormField(
+                        controller: _grossWeightController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          hintText: '80.0',
+                          prefixIcon: const Icon(Icons.scale_outlined, size: 18),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                        ),
+                        validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Required' : null,
                       ),
                     ],
                   ),
-                  const Divider(color: Colors.white24, height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Gross: ${currency.format(grossAmount)}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                      Text('Deductions: -${currency.format(totalDeductions)}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                      Text('Tare Weight (kg)', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      TextFormField(
+                        controller: _tareWeightController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          hintText: '2.0',
+                          prefixIcon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                        ),
+                      ),
                     ],
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+
+            // Highlighted Net Weight Box
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Net Weight', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF166534))),
+                  Text('${netWeight.toStringAsFixed(1)} kg', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: Color(0xFF166534))),
                 ],
               ),
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // 5. PAYMENT STATUS
-            Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'PAYMENT SETTLEMENT',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.grey),
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _paymentStatus,
-                            decoration: const InputDecoration(
-                              labelText: 'Payment Status',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _paymentStatuses.map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                            onChanged: (s) {
-                              if (s != null) {
-                                setState(() {
-                                  _paymentStatus = s;
-                                  if (s == 'Paid') {
-                                    _amountReceivedController.text = netRevenue.toStringAsFixed(0);
-                                  }
-                                });
-                              }
-                            },
-                          ),
+            // Rate (₹/kg) and Gross Amount Side-by-Side
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Rate (₹ / kg)', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      TextFormField(
+                        controller: _rateController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          prefixText: '₹ ',
+                          hintText: '580',
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
                         ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            initialValue: _paymentMode,
-                            decoration: const InputDecoration(
-                              labelText: 'Payment Mode',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _paymentModes.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-                            onChanged: (m) => setState(() => _paymentMode = m ?? 'Cash'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        validator: (v) => (double.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter rate' : null,
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Gross Amount', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Container(
+                        height: 48,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF9FAFB),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          border: Border.all(color: AppColorScheme.cardBorderLight),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: Text(currency.format(grossAmount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Deductions Section (Commission, Transport, Other)
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColorScheme.cardBorderLight),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Deductions', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  const SizedBox(height: AppSpacing.sm),
+                  _deductionRow('Commission', _commissionController, '1500'),
+                  const SizedBox(height: 8),
+                  _deductionRow('Transport', _transportController, '800'),
+                  const SizedBox(height: 8),
+                  _deductionRow('Other', _otherDeductionsController, '200'),
+                ],
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: AppSpacing.md),
 
-            // 6. SUBMIT BUTTON
-            SizedBox(
-              height: 52,
-              child: FilledButton.icon(
-                onPressed: _isSaving ? null : _confirmSale,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColorScheme.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                ),
-                icon: _isSaving
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                    : const Icon(Icons.check_circle_outline),
-                label: Text(
-                  _isSaving ? 'Recording Sale...' : 'CONFIRM COCOON SALE',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+            // Highlighted Net Revenue Box
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF86EFAC)),
               ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Net Revenue', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF166534))),
+                  Text(currency.format(netRevenue), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Color(0xFF166534))),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Payment Status Segmented Selector
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Payment Status', style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5E9E6),
+                    borderRadius: BorderRadius.circular(AppRadius.pill),
+                  ),
+                  child: Row(
+                    children: _paymentStatuses.map((s) {
+                      final isSelected = _paymentStatus == s;
+                      return Expanded(
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _paymentStatus = s;
+                              if (s == 'Paid') {
+                                _amountReceivedController.text = netRevenue.toStringAsFixed(0);
+                              }
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(AppRadius.pill),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? AppColorScheme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(AppRadius.pill),
+                            ),
+                            child: Center(
+                              child: Text(
+                                s,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                  color: isSelected ? Colors.white : Colors.grey.shade800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.xxl),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _deductionRow(String label, TextEditingController controller, String hint) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+        SizedBox(
+          width: 120,
+          height: 40,
+          child: TextFormField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textAlign: TextAlign.end,
+            decoration: InputDecoration(
+              prefixText: '₹ ',
+              hintText: hint,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.xs), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.xs), borderSide: const BorderSide(color: AppColorScheme.cardBorderLight)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

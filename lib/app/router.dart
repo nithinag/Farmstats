@@ -185,7 +185,38 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const NotificationCenterScreen(),
     ),
 
-    // Stateful Shell Route for Bottom Nav Tabs
+    // Expenses Route
+    GoRoute(
+      path: '/expenses',
+      builder: (context, state) => const ExpenseListScreen(),
+      routes: [
+        GoRoute(
+          path: 'add',
+          builder: (context, state) {
+            final batchId = state.extra as String?;
+            return ExpenseFormScreen(initialBatchId: batchId);
+          },
+        ),
+        GoRoute(
+          path: ':id',
+          builder: (context, state) {
+            final expense = state.extra as Expense;
+            return ExpenseDetailsScreen(expense: expense);
+          },
+          routes: [
+            GoRoute(
+              path: 'edit',
+              builder: (context, state) {
+                final expense = state.extra as Expense;
+                return ExpenseFormScreen(expense: expense);
+              },
+            ),
+          ],
+        ),
+      ],
+    ),
+
+    // Stateful Shell Route for Bottom Nav Tabs (4 primary tabs matching design)
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) {
         return NavigationShell(navigationShell: navigationShell);
@@ -231,41 +262,7 @@ final GoRouter appRouter = GoRouter(
             ),
           ],
         ),
-        // Branch 2: Expenses
-        StatefulShellBranch(
-          routes: [
-            GoRoute(
-              path: '/expenses',
-              builder: (context, state) => const ExpenseListScreen(),
-              routes: [
-                GoRoute(
-                  path: 'add',
-                  builder: (context, state) {
-                    final batchId = state.extra as String?;
-                    return ExpenseFormScreen(initialBatchId: batchId);
-                  },
-                ),
-                GoRoute(
-                  path: ':id',
-                  builder: (context, state) {
-                    final expense = state.extra as Expense;
-                    return ExpenseDetailsScreen(expense: expense);
-                  },
-                  routes: [
-                    GoRoute(
-                      path: 'edit',
-                      builder: (context, state) {
-                        final expense = state.extra as Expense;
-                        return ExpenseFormScreen(expense: expense);
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-        // Branch 3: Reports & Analytics
+        // Branch 2: Reports & Analytics
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -280,7 +277,7 @@ final GoRouter appRouter = GoRouter(
             ),
           ],
         ),
-        // Branch 4: Settings & Farm Configuration
+        // Branch 3: Settings & Farm Configuration
         StatefulShellBranch(
           routes: [
             GoRoute(

@@ -110,12 +110,16 @@ class EmptyStateView extends StatelessWidget {
   final String title;
   final String message;
   final IconData icon;
+  final VoidCallback? onAction;
+  final String? actionLabel;
 
   const EmptyStateView({
     super.key,
     required this.title,
     required this.message,
     this.icon = Icons.inbox,
+    this.onAction,
+    this.actionLabel,
   });
 
   @override
@@ -126,7 +130,7 @@ class EmptyStateView extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 80, color: Theme.of(context).colorScheme.outline),
+            Icon(icon, size: 64, color: Theme.of(context).colorScheme.outline),
             const SizedBox(height: AppSpacing.md),
             Text(
               title,
@@ -136,9 +140,21 @@ class EmptyStateView extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               message,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),
+            if (onAction != null && actionLabel != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              FilledButton.icon(
+                onPressed: onAction,
+                icon: const Icon(Icons.add),
+                label: Text(actionLabel!),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF1B4332),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
           ],
         ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.1, end: 0),
       ),
