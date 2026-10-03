@@ -34,11 +34,11 @@ class BatchValidationService {
         // From planned, can only go to active or cancelled.
         return next == BatchStatus.active || next == BatchStatus.cancelled;
       case BatchStatus.active:
-        // From active, can go to harvested or cancelled.
-        return next == BatchStatus.harvested || next == BatchStatus.cancelled;
+        // From active, can go to harvested, completed, or cancelled.
+        return next == BatchStatus.harvested || next == BatchStatus.completed || next == BatchStatus.cancelled;
       case BatchStatus.harvested:
-        // From harvested, can only go to completed.
-        return next == BatchStatus.completed;
+        // From harvested, can go to completed or cancelled.
+        return next == BatchStatus.completed || next == BatchStatus.cancelled;
       case BatchStatus.completed:
       case BatchStatus.cancelled:
         // Terminal states

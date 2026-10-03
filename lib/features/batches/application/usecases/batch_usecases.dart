@@ -91,6 +91,13 @@ class UpdateBatchUseCase {
   }
 }
 
+class DeleteBatchUseCase {
+  final IBatchRepository _repository;
+  DeleteBatchUseCase(this._repository);
+
+  Future<Either<Failure, Unit>> execute(String id) => _repository.deleteBatch(id);
+}
+
 class GetBatchTimelineUseCase {
   final IBatchRepository _repository;
   GetBatchTimelineUseCase(this._repository);

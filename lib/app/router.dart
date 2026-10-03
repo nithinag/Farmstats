@@ -262,7 +262,16 @@ final GoRouter appRouter = GoRouter(
             ),
           ],
         ),
-        // Branch 2: Reports & Analytics
+        // Branch 2: Labour Management & Attendance
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/labour-tab',
+              builder: (context, state) => const WorkerListScreen(),
+            ),
+          ],
+        ),
+        // Branch 3: Reports & Analytics
         StatefulShellBranch(
           routes: [
             GoRoute(
@@ -277,7 +286,7 @@ final GoRouter appRouter = GoRouter(
             ),
           ],
         ),
-        // Branch 3: Settings & Farm Configuration
+        // Branch 4: Settings & Farm Configuration
         StatefulShellBranch(
           routes: [
             GoRoute(

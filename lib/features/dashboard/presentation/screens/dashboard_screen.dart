@@ -16,10 +16,13 @@ import '../../../settings/application/providers/settings_notifier.dart';
 import '../../../settings/application/providers/settings_state.dart';
 import '../../../expenses/application/providers/expense_notifier.dart';
 import '../../../expenses/application/providers/expense_state.dart';
+import '../../../expenses/domain/entities/expense_entities.dart';
 import '../../../harvest/application/providers/harvest_notifier.dart';
 import '../../../harvest/application/providers/harvest_state.dart';
 import '../../../income/application/providers/income_notifier.dart';
 import '../../../income/application/providers/income_state.dart';
+import '../../../feeding/application/providers/feeding_notifier.dart';
+import '../../../feeding/application/providers/feeding_state.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -61,7 +64,7 @@ class DashboardScreen extends ConsumerWidget {
         if (e.date.year == today.year && e.date.month == today.month && e.date.day == today.day) {
           todayExpenses += e.amount;
           todayActivitiesCount++;
-          if (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour')) {
+          if (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour') || e.description.toLowerCase().contains('labour')) {
             todayLabour += e.amount;
           }
         }
@@ -133,7 +136,7 @@ class DashboardScreen extends ConsumerWidget {
                               Text(
                                 farmerName,
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 14.5,
                                   fontWeight: FontWeight.w700,
                                   color: isDark ? Colors.white : const Color(0xFF111827),
                                 ),
@@ -216,36 +219,42 @@ class DashboardScreen extends ConsumerWidget {
             onRefresh: () async {
               await ref.read(dashboardAggregatorProvider.notifier).loadDashboard();
               await ref.read(batchNotifierProvider.notifier).loadBatches();
+              await ref.read(expenseNotifierProvider.notifier).loadExpenses();
+              await ref.read(incomeNotifierProvider.notifier).loadIncomes();
             },
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               children: [
-                // 1. ACTIVE BATCH HERO CARD (WITH SERICULTURE SILKWORM PHOTO LAYER)
+                // 1. ACTIVE BATCH HERO CARD (WITH SILKWORM & MULBERRY PHOTO LAYER)
                 if (activeBatch != null) ...[
                   _buildActiveBatchHero(context, ref, activeBatch, currency),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                 ] else ...[
                   _buildNoActiveBatchCard(context),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                 ],
 
-                // 2. TODAY'S ACTIVITY (3 CLEAN COMPACT PASTEL CARDS)
+                // 2. TODAY'S ACTIVITY (3 SUBSTANTIAL PASTEL CARDS)
                 _buildTodaySummary(context, currency, todayExpenses, todayLabour, todayActivitiesCount, isDark),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
-                // 3. QUICK ACTIONS (4 ROUNDED EVEN TILES)
+                // 3. QUICK ACTIONS (2x2 GRID TILES WITH CLEAR LABELS)
                 _buildQuickActionsGrid(context, activeBatch),
-                const SizedBox(height: 18),
+                const SizedBox(height: 20),
 
-                // 4. LAST COMPLETED BATCH
+                // 4. RECENT ACTIVITY STREAM (LIVE FEED OF SERICULTURE LOGS)
+                _buildRecentActivitiesSection(context, ref, activeBatch, isDark),
+                const SizedBox(height: 20),
+
+                // 5. LAST COMPLETED BATCH
                 if (lastCompletedBatch != null) ...[
                   _buildLastCompletedBatchCard(context, ref, lastCompletedBatch, currency, isDark),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                 ],
 
-                // 5. PERFORMANCE / PRODUCTION TREND (COMPACT & CLEAN)
+                // 6. PRODUCTION PERFORMANCE TREND
                 _buildPerformanceCharts(context, ref, isDark),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
               ],
             ),
           ),
@@ -264,7 +273,7 @@ class DashboardScreen extends ConsumerWidget {
     if (expensesState is ExpenseStateData) {
       for (final e in expensesState.expenses.where((e) => e.batchId == batch.id)) {
         batchExpenses += e.amount;
-        if (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour')) {
+        if (e.category.id == 'c4' || e.category.name.toLowerCase().contains('labour') || e.description.toLowerCase().contains('labour')) {
           batchLabour += e.amount;
         }
       }
@@ -279,7 +288,7 @@ class DashboardScreen extends ConsumerWidget {
 
     // Configurable duration calculation
     final durationDays = batch.expectedHarvestDate.difference(batch.startDate).inDays;
-    final totalDuration = durationDays > 0 ? durationDays : 30;
+    final totalDuration = durationDays > 0 ? durationDays : 28;
     final currentDay = batch.currentAgeDays > 0 ? batch.currentAgeDays : (DateTime.now().difference(batch.startDate).inDays + 1);
     final progress = (currentDay / totalDuration.toDouble()).clamp(0.0, 1.0);
 
@@ -287,7 +296,7 @@ class DashboardScreen extends ConsumerWidget {
       onTap: () => context.push('/batch/${batch.id}', extra: batch),
       borderRadius: BorderRadius.circular(22),
       child: Container(
-        height: 204,
+        height: 210,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
           gradient: const LinearGradient(
@@ -311,12 +320,12 @@ class DashboardScreen extends ConsumerWidget {
           borderRadius: BorderRadius.circular(22),
           child: Stack(
             children: [
-              // Real Silkworm & Mulberry Leaf visual background layer (blended on the right side)
+              // Real Silkworm & Mulberry Leaf visual background layer
               Positioned(
                 top: 0,
                 right: 0,
                 bottom: 54,
-                width: 200,
+                width: 210,
                 child: ShaderMask(
                   shaderCallback: (rect) {
                     return const LinearGradient(
@@ -339,7 +348,7 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
 
-              // Soft top-down gradient overlay to keep text ultra-readable
+              // Soft gradient overlay to ensure text is 100% readable
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -606,7 +615,7 @@ class DashboardScreen extends ConsumerWidget {
                   "Today's Activity",
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
-                    fontSize: 14.5,
+                    fontSize: 15,
                     color: isDark ? Colors.white : const Color(0xFF1F2937),
                   ),
                 ),
@@ -648,7 +657,7 @@ class DashboardScreen extends ConsumerWidget {
                 value: currency.format(labour),
                 bgColor: const Color(0xFFEFF6FF),
                 iconColor: const Color(0xFF2563EB),
-                onTap: () => context.push('/labour'),
+                onTap: () => context.push('/labour-tab'),
               ),
             ),
             const SizedBox(width: 10),
@@ -657,10 +666,10 @@ class DashboardScreen extends ConsumerWidget {
               child: _todayPillCard(
                 icon: Icons.spa_outlined,
                 title: 'Activities',
-                value: '$activitiesCount',
+                value: '$activitiesCount Logged',
                 bgColor: const Color(0xFFF0FDF4),
                 iconColor: const Color(0xFF16A34A),
-                onTap: () => context.push('/feeding'),
+                onTap: () => context.push('/batch'),
               ),
             ),
           ],
@@ -681,7 +690,7 @@ class DashboardScreen extends ConsumerWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(14),
@@ -690,22 +699,22 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: iconColor, size: 18),
-            const SizedBox(height: 8),
+            Icon(icon, color: iconColor, size: 20),
+            const SizedBox(height: 10),
             Text(
               title,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 11.5,
                 color: Colors.grey.shade700,
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               value,
               style: const TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
+                fontSize: 14.5,
+                fontWeight: FontWeight.w800,
                 color: Color(0xFF111827),
               ),
             ),
@@ -723,51 +732,60 @@ class DashboardScreen extends ConsumerWidget {
           'Quick Actions',
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 14.5,
+            fontSize: 15,
             color: Color(0xFF1F2937),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
+        // 2x2 Grid with generous touch targets and sub-labels
         Row(
           children: [
-            // 1. Cocoon Sale (Pastel Green)
+            // Action 1: Cocoon Sale
             Expanded(
-              child: _pastelActionTile(
+              child: _gridActionCard(
+                title: 'Cocoon Sale',
+                subtitle: 'Record harvest sale',
                 icon: Icons.sell_outlined,
-                label: 'Cocoon Sale',
                 bgColor: const Color(0xFFF0FDF4),
                 iconColor: const Color(0xFF15803D),
                 onTap: () => context.push('/cocoon-sale', extra: activeBatch?.id),
               ),
             ),
-            const SizedBox(width: 8),
-            // 2. Expense (Pastel Red)
+            const SizedBox(width: 12),
+            // Action 2: Expense
             Expanded(
-              child: _pastelActionTile(
+              child: _gridActionCard(
+                title: 'Add Expense',
+                subtitle: 'Log farm purchases',
                 icon: Icons.receipt_long_outlined,
-                label: 'Expense',
                 bgColor: const Color(0xFFFFF1F2),
                 iconColor: const Color(0xFFE11D48),
                 onTap: () => context.push('/expenses/add', extra: activeBatch?.id),
               ),
             ),
-            const SizedBox(width: 8),
-            // 3. Labour (Pastel Blue)
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            // Action 3: Labour
             Expanded(
-              child: _pastelActionTile(
+              child: _gridActionCard(
+                title: 'Labour & Wages',
+                subtitle: 'Worker attendance & pay',
                 icon: Icons.people_outline,
-                label: 'Labour',
                 bgColor: const Color(0xFFEFF6FF),
                 iconColor: const Color(0xFF2563EB),
-                onTap: () => context.push('/labour/attendance'),
+                onTap: () => context.push('/labour/attendance', extra: activeBatch?.id),
               ),
             ),
-            const SizedBox(width: 8),
-            // 4. Feeding (Pastel Amber)
+            const SizedBox(width: 12),
+            // Action 4: Feeding
             Expanded(
-              child: _pastelActionTile(
+              child: _gridActionCard(
+                title: 'Feed Mulberry',
+                subtitle: 'Log daily leaf feed',
                 icon: Icons.eco_outlined,
-                label: 'Feeding',
                 bgColor: const Color(0xFFFEF3C7),
                 iconColor: const Color(0xFFD97706),
                 onTap: () => context.push('/feeding/add', extra: activeBatch?.id),
@@ -779,41 +797,172 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _pastelActionTile({
+  Widget _gridActionCard({
+    required String title,
+    required String subtitle,
     required IconData icon,
-    required String label,
     required Color bgColor,
     required Color iconColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(16),
       child: Container(
-        height: 68,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: iconColor.withValues(alpha: 0.12), width: 0.8),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: iconColor.withValues(alpha: 0.14), width: 0.8),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
           children: [
-            Icon(icon, color: iconColor, size: 20),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade800,
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.8),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1E293B)),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600, fontWeight: FontWeight.w400),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRecentActivitiesSection(BuildContext context, WidgetRef ref, Batch? activeBatch, bool isDark) {
+    final expenseState = ref.watch(expenseNotifierProvider);
+    final feedingState = ref.watch(feedingNotifierProvider);
+    final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+
+    final recentExpenses = switch (expenseState) {
+      ExpenseStateData(expenses: final list) => list.take(3).toList(),
+      _ => <Expense>[],
+    };
+
+    final recentFeedings = switch (feedingState) {
+      FeedingStateData(feedings: final list) => list.take(2).toList(),
+      _ => [],
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Farm Activities',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+                color: Color(0xFF1F2937),
+              ),
+            ),
+            InkWell(
+              onTap: () => context.push('/batch'),
+              child: const Text(
+                'View logs',
+                style: TextStyle(
+                  color: AppColorScheme.primary,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (recentExpenses.isEmpty && recentFeedings.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            decoration: BoxDecoration(
+              color: isDark ? AppColorScheme.surfaceContainerDark : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.history_outlined, size: 20, color: Color(0xFF64748B)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'No farm activities logged yet today. Use Quick Actions above to record operations.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: isDark ? AppColorScheme.surfaceContainerDark : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              children: [
+                ...recentExpenses.map((e) {
+                  final isLabour = e.category.id == 'c4' || e.description.toLowerCase().contains('labour');
+                  return ListTile(
+                    dense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    leading: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: isLabour ? const Color(0xFFEFF6FF) : const Color(0xFFFFF1F2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isLabour ? Icons.people_outline : Icons.receipt_long_outlined,
+                        size: 16,
+                        color: isLabour ? const Color(0xFF2563EB) : const Color(0xFFE11D48),
+                      ),
+                    ),
+                    title: Text(
+                      e.description.isNotEmpty ? e.description : e.category.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    subtitle: Text(
+                      DateFormat('dd MMM • hh:mm a').format(e.date),
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                    ),
+                    trailing: Text(
+                      currency.format(e.amount),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5, color: Color(0xFF1E293B)),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -859,7 +1008,7 @@ class DashboardScreen extends ConsumerWidget {
           'Last Completed Batch',
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 14.5,
+            fontSize: 15,
             color: Color(0xFF1F2937),
           ),
         ),
@@ -868,7 +1017,7 @@ class DashboardScreen extends ConsumerWidget {
           onTap: () => context.push('/batch/${batch.id}', extra: batch),
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isDark ? AppColorScheme.surfaceContainerDark : Colors.white,
               borderRadius: BorderRadius.circular(16),
@@ -888,8 +1037,8 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 // Clean Cocoons Thumbnail Photo
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 50,
+                  height: 50,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFE5E7EB)),
@@ -916,7 +1065,7 @@ class DashboardScreen extends ConsumerWidget {
                         children: [
                           Text(
                             batch.batchName,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                           ),
                           const SizedBox(width: 6),
                           Container(

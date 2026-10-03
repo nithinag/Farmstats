@@ -21,6 +21,7 @@ final batchRepositoryProvider = Provider<IBatchRepository>((ref) {
 final getBatchesUseCaseProvider = Provider((ref) => GetBatchesUseCase(ref.watch(batchRepositoryProvider)));
 final addBatchUseCaseProvider = Provider((ref) => AddBatchUseCase(ref.watch(batchRepositoryProvider)));
 final updateBatchUseCaseProvider = Provider((ref) => UpdateBatchUseCase(ref.watch(batchRepositoryProvider)));
+final deleteBatchUseCaseProvider = Provider((ref) => DeleteBatchUseCase(ref.watch(batchRepositoryProvider)));
 final getBatchTimelineUseCaseProvider = Provider((ref) => GetBatchTimelineUseCase(ref.watch(batchRepositoryProvider)));
 
 final activeBatchProvider = Provider<Batch?>((ref) {
@@ -31,7 +32,7 @@ final activeBatchProvider = Provider<Batch?>((ref) {
       // 1. Find explicit active batch
       final active = batches.where((b) => b.status == BatchStatus.active).firstOrNull;
       if (active != null) return active;
-      // 2. Fallback to any non-completed, non-cancelled batch
+      // 2. Fallback to any planned/non-completed, non-cancelled batch
       return batches.where((b) => b.status != BatchStatus.completed && b.status != BatchStatus.cancelled).firstOrNull;
     },
     orElse: () => null,
@@ -115,5 +116,14 @@ class BatchNotifier extends Notifier<BatchState> {
     );
     return await updateBatch(completed, batch);
   }
-}
 
+  Future<bool> deleteBatch(String batchId) async {
+    final result = await ref.read(deleteBatchUseCaseProvider).execute(batchId);
+    return result.fold((failure) => false, (_) {
+      loadBatches();
+      ref.read(dashboardAggregatorProvider.notifier).loadDashboard();
+      ref.read(reportsNotifierProvider.notifier).loadReports();
+      return true;
+    });
+  }
+}

@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' hide Column, Batch;
 import '../../../../shared/widgets/layout_components.dart';
 import '../../../../core/theme/spacing.dart';
-import '../../../../core/theme/radius.dart';
 import '../../../../core/theme/color_scheme.dart';
 import '../../../../data/providers/database_provider.dart';
 import '../../../../data/database/app_database.dart';
@@ -26,7 +25,7 @@ class BatchFormScreen extends ConsumerStatefulWidget {
 
 class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   late TextEditingController _nameController;
   late TextEditingController _dflsController;
   late TextEditingController _dflPriceController;
@@ -35,34 +34,56 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
   late TextEditingController _varietyController;
   late TextEditingController _mulberryController;
   late TextEditingController _rearingHouseController;
-  late TextEditingController _tempController;
-  late TextEditingController _humController;
   late TextEditingController _notesController;
 
   DateTime _startDate = DateTime.now();
-  InstarStage _currentStage = InstarStage.first;
+  InstarStage _currentStage = InstarStage.second; // Default to 2nd stage (Chawki)
   BatchStatus _status = BatchStatus.active;
   bool _recordDflExpense = true;
   bool _isSaving = false;
+
+  static const List<String> kCrcSuppliers = [
+    'Govt Chawki Rearing Center (CRC)',
+    'National Silkworm Seed Organization (NSSO)',
+    'Central Silk Board (CSB) Grainage',
+    'Sri Lakshmi Chawki Center',
+    'Venkateshwara CRC',
+    'Local Certified CRC',
+  ];
+
+  static const List<String> kSilkwormVarieties = [
+    'Bivoltine Double Hybrid (FC1 x FC2)',
+    'Cross Breed (CB / PM x CSR2)',
+    'CSR2 x CSR4 (Bivoltine)',
+    'Pure Mysore (PM)',
+    'Double Hybrid (CSR16 x CSR17)',
+  ];
+
+  static const List<String> kMulberryVarieties = [
+    'V-1 (Victory-1)',
+    'G-4',
+    'K-2 (M5)',
+    'S-36',
+    'Local Mulberry',
+  ];
 
   @override
   void initState() {
     super.initState();
     final initialDuration = widget.batch != null
         ? widget.batch!.expectedHarvestDate.difference(widget.batch!.startDate).inDays
-        : 30;
+        : 28;
+
     _nameController = TextEditingController(text: widget.batch?.batchName ?? '');
     _dflsController = TextEditingController(text: widget.batch?.numberOfDfls.toString() ?? '300');
     _dflPriceController = TextEditingController(text: widget.batch?.dflPrice?.toString() ?? '15');
-    _durationController = TextEditingController(text: initialDuration > 0 ? initialDuration.toString() : '30');
-    _supplierController = TextEditingController(text: widget.batch?.eggSource ?? 'Govt CRC (Chawki Rearing Center)');
-    _varietyController = TextEditingController(text: widget.batch?.silkwormVariety ?? 'CSR2');
-    _mulberryController = TextEditingController(text: widget.batch?.mulberryVariety ?? 'V1');
-    _rearingHouseController = TextEditingController(text: widget.batch?.rearingHouse ?? 'Main House');
-    _tempController = TextEditingController(text: widget.batch?.temperature.toString() ?? '25.0');
-    _humController = TextEditingController(text: widget.batch?.humidity.toString() ?? '75.0');
+    _durationController = TextEditingController(text: initialDuration > 0 ? initialDuration.toString() : '28');
+    _supplierController = TextEditingController(text: widget.batch?.eggSource ?? kCrcSuppliers.first);
+    _varietyController = TextEditingController(text: widget.batch?.silkwormVariety ?? kSilkwormVarieties.first);
+    _mulberryController = TextEditingController(text: widget.batch?.mulberryVariety ?? 'V-1');
+    _rearingHouseController = TextEditingController(text: widget.batch?.rearingHouse ?? 'Main Rearing House');
     _notesController = TextEditingController(text: widget.batch?.notes ?? '');
-    
+
     if (widget.batch != null) {
       _startDate = widget.batch!.startDate;
       _currentStage = widget.batch!.currentStage;
@@ -81,16 +102,61 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
     _varietyController.dispose();
     _mulberryController.dispose();
     _rearingHouseController.dispose();
-    _tempController.dispose();
-    _humController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
   int get _dfls => int.tryParse(_dflsController.text) ?? 0;
   double get _dflPrice => double.tryParse(_dflPriceController.text) ?? 0.0;
-  int get _durationDays => int.tryParse(_durationController.text) ?? 30;
+  int get _durationDays => int.tryParse(_durationController.text) ?? 28;
   double get _totalDflCost => _dfls * _dflPrice;
+
+  String _getStageLabel(InstarStage stage) {
+    switch (stage) {
+      case InstarStage.first:
+        return '1st Stage (Chawki)';
+      case InstarStage.second:
+        return '2nd Stage (Chawki - Standard)';
+      case InstarStage.third:
+        return '3rd Stage (Late Age Rearing)';
+      case InstarStage.fourth:
+        return '4th Stage (Late Age Rearing)';
+      case InstarStage.fifth:
+        return '5th Stage (Mounting / Spinning)';
+      case InstarStage.spinning:
+        return 'Spinning & Cocooning Stage';
+    }
+  }
+
+  Future<void> _deleteBatch() async {
+    if (widget.batch == null) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete / Terminate Batch?'),
+        content: Text('Are you sure you want to delete ${widget.batch!.batchName}? All linked records and timeline data will be removed.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColorScheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete Batch'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      setState(() => _isSaving = true);
+      await ref.read(batchNotifierProvider.notifier).deleteBatch(widget.batch!.id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Batch ${widget.batch!.batchName} deleted.')),
+        );
+        context.pop();
+      }
+    }
+  }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
@@ -102,7 +168,7 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
         id: batchId,
         batchName: _nameController.text.trim(),
         startDate: _startDate,
-        expectedHarvestDate: _startDate.add(Duration(days: _durationDays > 0 ? _durationDays : 30)),
+        expectedHarvestDate: _startDate.add(Duration(days: _durationDays > 0 ? _durationDays : 28)),
         actualHarvestDate: widget.batch?.actualHarvestDate,
         silkwormVariety: _varietyController.text.trim(),
         eggSource: _supplierController.text.trim(),
@@ -114,8 +180,8 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
         currentAgeDays: widget.batch?.currentAgeDays ?? 1,
         status: _status,
         healthStatus: widget.batch?.healthStatus ?? HealthStatus.good,
-        temperature: double.tryParse(_tempController.text) ?? 25.0,
-        humidity: double.tryParse(_humController.text) ?? 75.0,
+        temperature: widget.batch?.temperature ?? 25.0,
+        humidity: widget.batch?.humidity ?? 75.0,
         notes: _notesController.text.isEmpty ? null : _notesController.text.trim(),
       );
 
@@ -135,7 +201,7 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
               date: _startDate,
               categoryId: 'c1', // DFL Cost
               paymentMethod: 'Cash',
-              description: 'DFL Purchase - $_dfls DFLs @ ₹${_dflPrice.toStringAsFixed(1)} from ${_supplierController.text}',
+              description: 'DFL Purchase: $_dfls DFLs @ ₹${_dflPrice.toStringAsFixed(1)} from ${_supplierController.text}',
               batchId: batchId,
             ),
             mode: InsertMode.insertOrIgnore,
@@ -164,8 +230,8 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            backgroundColor: AppColorScheme.success,
-            content: Text('✓ Batch ${batch.batchName} created successfully!'),
+            backgroundColor: AppColorScheme.forestGreen,
+            content: Text('✓ Batch ${batch.batchName} saved successfully!'),
           ),
         );
         context.pop();
@@ -196,112 +262,93 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
     final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
 
     return BaseScaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text(isNew ? 'Start New Batch' : 'Edit Batch'),
-        backgroundColor: AppColorScheme.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF1E293B),
+        elevation: 0,
+        actions: [
+          if (!isNew)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: AppColorScheme.error),
+              tooltip: 'Delete Batch',
+              onPressed: _deleteBatch,
+            ),
+        ],
       ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
-            // Header Card
-            Card(
-              elevation: 0,
-              color: AppColorScheme.primaryContainer.withValues(alpha: 0.35),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                side: BorderSide(color: AppColorScheme.primaryLight.withValues(alpha: 0.3)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Row(
-                  children: [
-                    const CircleAvatar(
-                      backgroundColor: AppColorScheme.primaryLight,
-                      child: Icon(Icons.egg_outlined, color: Colors.white),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            isNew ? 'New Rearing Cycle' : 'Update Rearing Batch',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            isNew ? 'Enter DFL details to begin tracking this batch.' : 'Edit batch parameters.',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
             // Batch Name & Start Date
             TextFormField(
               controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Batch Number / Name',
-                prefixIcon: Icon(Icons.tag),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Batch Number / Name *',
+                prefixIcon: const Icon(Icons.layers_outlined, color: AppColorScheme.primary),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
               ),
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Batch name required' : null,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                side: BorderSide(color: Colors.grey.shade300),
-              ),
-              leading: const Icon(Icons.calendar_today, color: AppColorScheme.primaryLight),
-              title: const Text('Start Date'),
-              subtitle: Text(DateFormat('dd MMMM yyyy').format(_startDate)),
-              trailing: const Icon(Icons.edit, size: 18),
+            // Start Date picker
+            InkWell(
               onTap: () async {
                 final picked = await showDatePicker(
                   context: context,
                   initialDate: _startDate,
                   firstDate: DateTime(2020),
-                  lastDate: DateTime.now().add(const Duration(days: 30)),
+                  lastDate: DateTime.now().add(const Duration(days: 90)),
                 );
                 if (picked != null) setState(() => _startDate = picked);
               },
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Expected Duration
-            TextFormField(
-              controller: _durationController,
-              decoration: const InputDecoration(
-                labelText: 'Cycle Duration (Days)',
-                prefixIcon: Icon(Icons.timer_outlined),
-                border: OutlineInputBorder(),
-                helperText: 'Standard rearing duration (editable, usually 28-32 days)',
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_today, color: AppColorScheme.primary, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Start Date', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                          Text(DateFormat('dd MMMM yyyy').format(_startDate), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_drop_down, color: Color(0xFF64748B)),
+                  ],
+                ),
               ),
-              keyboardType: TextInputType.number,
-              validator: (v) => (int.tryParse(v ?? '') ?? 0) <= 0 ? 'Enter valid duration' : null,
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // DFLs & Price
+            // DFL Quantity & Price / DFL
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
                     controller: _dflsController,
-                    decoration: const InputDecoration(
-                      labelText: 'DFL Quantity',
-                      prefixIcon: Icon(Icons.numbers),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: 'DFL Quantity *',
+                      prefixIcon: const Icon(Icons.egg_outlined, color: AppColorScheme.primary),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                     ),
                     keyboardType: TextInputType.number,
                     onChanged: (_) => setState(() {}),
@@ -312,10 +359,13 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
                 Expanded(
                   child: TextFormField(
                     controller: _dflPriceController,
-                    decoration: const InputDecoration(
-                      labelText: 'Price / DFL (₹)',
-                      prefixIcon: Icon(Icons.currency_rupee),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: 'Rate / DFL (₹)',
+                      prefixIcon: const Icon(Icons.currency_rupee, color: AppColorScheme.primary),
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
                     ),
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     onChanged: (_) => setState(() {}),
@@ -327,18 +377,19 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
 
             // Calculated DFL Cost banner
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF86EFAC)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Total DFL Cost:'),
+                  const Text('Total DFL Cost:', style: TextStyle(color: Color(0xFF166534), fontWeight: FontWeight.w600)),
                   Text(
                     currency.format(_totalDflCost),
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColorScheme.primary),
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: Color(0xFF166534)),
                   ),
                 ],
               ),
@@ -346,39 +397,106 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
             if (isNew) ...[
               CheckboxListTile(
                 value: _recordDflExpense,
-                title: const Text('Record as initial batch expense', style: TextStyle(fontSize: 13)),
-                subtitle: const Text('Automatically logs DFL purchase into batch expense ledger', style: TextStyle(fontSize: 11)),
+                title: const Text('Record as initial batch expense', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                subtitle: const Text('Automatically logs DFL purchase into batch expense ledger', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                 contentPadding: EdgeInsets.zero,
+                activeColor: AppColorScheme.primary,
                 onChanged: (v) => setState(() => _recordDflExpense = v ?? true),
               ),
             ],
             const SizedBox(height: AppSpacing.md),
 
-            // Supplier / CRC
-            TextFormField(
-              controller: _supplierController,
-              decoration: const InputDecoration(
+            // Supplier / CRC Dropdown with editable value
+            DropdownButtonFormField<String>(
+              initialValue: kCrcSuppliers.contains(_supplierController.text) ? _supplierController.text : null,
+              decoration: InputDecoration(
                 labelText: 'Egg Source / CRC Supplier',
-                prefixIcon: Icon(Icons.business),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.store_outlined, color: AppColorScheme.primary),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
               ),
+              items: kCrcSuppliers.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13)))).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _supplierController.text = v);
+              },
             ),
             const SizedBox(height: AppSpacing.md),
 
-            // Silkworm Variety & Mulberry
+            // Silkworm Variety Dropdown
+            DropdownButtonFormField<String>(
+              initialValue: kSilkwormVarieties.contains(_varietyController.text) ? _varietyController.text : kSilkwormVarieties.first,
+              decoration: InputDecoration(
+                labelText: 'Silkworm Variety',
+                prefixIcon: const Icon(Icons.spa_outlined, color: AppColorScheme.primary),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              items: kSilkwormVarieties.map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontSize: 13)))).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _varietyController.text = v);
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Mulberry Variety (Default V-1)
+            DropdownButtonFormField<String>(
+              initialValue: kMulberryVarieties.contains(_mulberryController.text) ? _mulberryController.text : 'V-1 (Victory-1)',
+              decoration: InputDecoration(
+                labelText: 'Mulberry Leaf Variety',
+                prefixIcon: const Icon(Icons.eco_outlined, color: AppColorScheme.primary),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              items: kMulberryVarieties.map((m) => DropdownMenuItem(value: m, child: Text(m, style: const TextStyle(fontSize: 13)))).toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _mulberryController.text = v);
+              },
+            ),
+            const SizedBox(height: AppSpacing.md),
+
+            // Current Stage (Default 2nd Stage Chawki) & Status
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
-                    controller: _varietyController,
-                    decoration: const InputDecoration(labelText: 'Silkworm Variety', border: OutlineInputBorder()),
+                  flex: 3,
+                  child: DropdownButtonFormField<InstarStage>(
+                    initialValue: _currentStage,
+                    decoration: InputDecoration(
+                      labelText: 'Current Stage',
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                    items: InstarStage.values.map((s) => DropdownMenuItem(value: s, child: Text(_getStageLabel(s), style: const TextStyle(fontSize: 12)))).toList(),
+                    onChanged: (v) => setState(() => _currentStage = v!),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: TextFormField(
-                    controller: _mulberryController,
-                    decoration: const InputDecoration(labelText: 'Mulberry Variety', border: OutlineInputBorder()),
+                  flex: 2,
+                  child: DropdownButtonFormField<BatchStatus>(
+                    initialValue: _status,
+                    decoration: InputDecoration(
+                      labelText: 'Status',
+                      filled: true,
+                      fillColor: const Color(0xFFF8FAFC),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: BatchStatus.active, child: Text('Active', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF15803D)))),
+                      DropdownMenuItem(value: BatchStatus.planned, child: Text('Planned', style: TextStyle(fontSize: 13, color: Color(0xFF2563EB)))),
+                      DropdownMenuItem(value: BatchStatus.completed, child: Text('Completed', style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)))),
+                      DropdownMenuItem(value: BatchStatus.cancelled, child: Text('Cancelled', style: TextStyle(fontSize: 13, color: Color(0xFFDC2626)))),
+                    ],
+                    onChanged: (v) => setState(() => _status = v!),
                   ),
                 ),
               ],
@@ -388,45 +506,27 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
             // Rearing House
             TextFormField(
               controller: _rearingHouseController,
-              decoration: const InputDecoration(
-                labelText: 'Rearing Shed / House',
-                prefixIcon: Icon(Icons.warehouse_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Rearing House / Shed',
+                prefixIcon: const Icon(Icons.warehouse_outlined, color: AppColorScheme.primary),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
               ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-
-            // Current Stage & Status
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<InstarStage>(
-                    initialValue: _currentStage,
-                    decoration: const InputDecoration(labelText: 'Current Stage', border: OutlineInputBorder()),
-                    items: InstarStage.values.map((s) => DropdownMenuItem(value: s, child: Text(s.name.toUpperCase()))).toList(),
-                    onChanged: (v) => setState(() => _currentStage = v!),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(
-                  child: DropdownButtonFormField<BatchStatus>(
-                    initialValue: _status,
-                    decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
-                    items: BatchStatus.values.map((s) => DropdownMenuItem(value: s, child: Text(s.name.toUpperCase()))).toList(),
-                    onChanged: (v) => setState(() => _status = v!),
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: AppSpacing.md),
 
             // Notes
             TextFormField(
               controller: _notesController,
-              decoration: const InputDecoration(
-                labelText: 'Additional Notes',
-                prefixIcon: Icon(Icons.note_alt_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: 'Additional Notes / Batch Info',
+                prefixIcon: const Icon(Icons.note_alt_outlined, color: AppColorScheme.primary),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
               ),
               maxLines: 2,
             ),
@@ -440,13 +540,13 @@ class _BatchFormScreenState extends ConsumerState<BatchFormScreen> {
                 onPressed: _isSaving ? null : _save,
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColorScheme.primary,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isSaving
                     ? const CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        isNew ? 'CREATE & START BATCH' : 'UPDATE BATCH',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        isNew ? 'START REARING BATCH' : 'UPDATE BATCH',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, letterSpacing: 0.3),
                       ),
               ),
             ),

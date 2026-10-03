@@ -152,22 +152,25 @@ class SettingsScreen extends ConsumerWidget {
                     Container(
                       width: 80,
                       height: 80,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Color(0xFFE2E8F0),
-                        image: DecorationImage(
-                          image: AssetImage('assets/images/user_avatar.png'),
-                          fit: BoxFit.cover,
-                          onError: null,
-                        ),
+                        color: const Color(0xFFE2E8F0),
+                        border: Border.all(color: AppColorScheme.primary.withValues(alpha: 0.25), width: 2),
                       ),
-                      child: Center(
-                        child: Text(
-                          _getInitials(displayName),
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: AppColorScheme.forestGreen,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(40),
+                        child: Image.asset(
+                          'assets/images/farmer_avatar.jpg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (ctx, err, stack) => Center(
+                            child: Text(
+                              _getInitials(displayName),
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: AppColorScheme.forestGreen,
+                              ),
+                            ),
                           ),
                         ),
                       ),
