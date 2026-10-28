@@ -32,7 +32,7 @@ class ReportsDashboardScreen extends ConsumerStatefulWidget {
 
 class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen> {
   int _selectedTab = 0; // 0: Reports, 1: Analytics
-  String _timeFilter = 'Month'; // Month, Year, Batch, All
+  String _timeFilter = 'All'; // All, Batch, Month, Year
   DateTime _currentDate = DateTime.now();
   String? _selectedBatchId;
   String _productionUnit = 'kg';
@@ -294,7 +294,7 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
-        children: ['Month', 'Year', 'Batch', 'All'].map((t) {
+        children: ['All', 'Batch', 'Month', 'Year'].map((t) {
           final isSelected = _timeFilter == t;
           return Expanded(
             child: GestureDetector(
@@ -1032,10 +1032,10 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
     for (int i = 0; i < months.length; i++) {
       final m = months[i];
       final rev = allIncomes
-          .where((inc) => inc.saleDate.year == activeYear && inc.saleDate.month == m)
+          .where((inc) => (_timeFilter == 'All' || inc.saleDate.year == activeYear) && inc.saleDate.month == m)
           .fold(0.0, (sum, inc) => sum + inc.netAmount);
       final exp = allExpenses
-          .where((e) => e.date.year == activeYear && e.date.month == m)
+          .where((e) => (_timeFilter == 'All' || e.date.year == activeYear) && e.date.month == m)
           .fold(0.0, (sum, e) => sum + e.amount);
 
       if (rev > 0 || exp > 0) hasAnyTransactions = true;
@@ -1284,7 +1284,7 @@ class _ReportsDashboardScreenState extends ConsumerState<ReportsDashboardScreen>
     for (int i = 0; i < months.length; i++) {
       final m = months[i];
       final kg = allHarvests
-          .where((h) => h.harvestDate.year == activeYear && h.harvestDate.month == m)
+          .where((h) => (_timeFilter == 'All' || h.harvestDate.year == activeYear) && h.harvestDate.month == m)
           .fold(0.0, (sum, h) => sum + h.netSaleableWeight);
 
       if (kg > 0) hasData = true;
