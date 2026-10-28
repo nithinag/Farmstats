@@ -13,6 +13,8 @@ class SettingsMapper {
       farmArea: model.farmArea,
       numRearingHouses: model.numRearingHouses,
       defaultMulberryVariety: model.defaultMulberryVariety,
+      farmType: model.farmType,
+      photoPath: model.photoPath,
     );
   }
 
@@ -27,6 +29,8 @@ class SettingsMapper {
       farmArea: entity.farmArea,
       numRearingHouses: entity.numRearingHouses,
       defaultMulberryVariety: entity.defaultMulberryVariety,
+      farmType: entity.farmType,
+      photoPath: entity.photoPath,
     );
   }
 

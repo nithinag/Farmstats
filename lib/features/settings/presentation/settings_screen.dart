@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/color_scheme.dart';
+import '../../../../shared/widgets/farmer_avatar.dart';
+import '../application/services/profile_photo_service.dart';
 import '../application/providers/settings_notifier.dart';
 import '../application/providers/settings_state.dart';
 import '../application/providers/language_provider.dart';
@@ -15,6 +17,29 @@ import '../../reports/application/providers/reports_notifier.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  Future<void> _handlePhotoAction(BuildContext context, WidgetRef ref, FarmProfile profile) async {
+    await ProfilePhotoService.showPhotoOptionsModal(
+      context: context,
+      hasCustomPhoto: profile.photoPath.isNotEmpty,
+      onPhotoSelected: (newPath) async {
+        final updated = profile.copyWith(photoPath: newPath ?? '');
+        await ref.read(settingsNotifierProvider.notifier).saveProfile(updated);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                newPath != null && newPath.isNotEmpty
+                    ? 'Profile photo updated successfully'
+                    : 'Profile photo removed',
+              ),
+              backgroundColor: AppColorScheme.forestGreen,
+            ),
+          );
+        }
+      },
+    );
+  }
 
   Future<void> _showResetConfirmation(BuildContext context, WidgetRef ref) async {
     final db = ref.read(appDatabaseProvider);
@@ -89,13 +114,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  String _getInitials(String name) {
-    final parts = name.trim().split(' ');
-    if (parts.isEmpty || parts[0].isEmpty) return 'F';
-    if (parts.length == 1) return parts[0][0].toUpperCase();
-    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(settingsNotifierProvider);
@@ -108,24 +126,31 @@ class SettingsScreen extends ConsumerWidget {
 
     final profile = (state is SettingsStateData)
         ? state.profile
-        : const FarmProfile(farmName: 'My Sericulture Farm', ownerName: 'Nithin Nagabushanam');
+        : const FarmProfile(
+            farmName: 'My Sericulture Farm',
+            ownerName: 'Nithin Nagabushanam',
+            farmType: 'Sericulture',
+            address: 'Chittoor, Andhra Pradesh',
+          );
 
     final displayName = profile.ownerName.isNotEmpty ? profile.ownerName : 'Nithin Nagabushanam';
     final displayFarmName = profile.farmName.isNotEmpty ? profile.farmName : 'My Sericulture Farm';
     final displayLocation = profile.address.isNotEmpty ? profile.address : 'Chittoor, Andhra Pradesh';
+    final displayFarmType = profile.farmType.isNotEmpty ? profile.farmType : 'Sericulture';
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Color(0xFF1E293B)),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/');
+              context.go('/dashboard');
             }
           },
         ),
@@ -142,52 +167,24 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         children: [
-          // 1. Center Profile Hero
+          // 1. Center Profile Header with Interactive Avatar
           Center(
             child: Column(
               children: [
-                Stack(
-                  alignment: Alignment.bottomRight,
-                  children: [
-                    Container(
-                      width: 80,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: const Color(0xFFE2E8F0),
-                        border: Border.all(color: AppColorScheme.primary.withValues(alpha: 0.25), width: 2),
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(40),
-                        child: Image.asset(
-                          'assets/images/farmer_avatar.jpg',
-                          fit: BoxFit.cover,
-                          errorBuilder: (ctx, err, stack) => Center(
-                            child: Text(
-                              _getInitials(displayName),
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w700,
-                                color: AppColorScheme.forestGreen,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(
-                        color: AppColorScheme.forestGreen,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.check, size: 12, color: Colors.white),
-                    ),
-                  ],
+                FarmerAvatar(
+                  photoPath: profile.photoPath,
+                  name: displayName,
+                  size: 84,
+                  showEditBadge: true,
+                  badgeIcon: Icons.camera_alt_rounded,
+                  badgeColor: AppColorScheme.forestGreen,
+                  onTap: () => _handlePhotoAction(context, ref, profile),
+                  onBadgeTap: () => _handlePhotoAction(context, ref, profile),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   displayName,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -195,12 +192,26 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  displayFarmName,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
+                InkWell(
+                  onTap: () => context.push('/settings/profile'),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          displayFarmName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit_outlined, size: 12, color: Color(0xFF94A3B8)),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -222,7 +233,7 @@ class SettingsScreen extends ConsumerWidget {
                 _buildInfoRow(
                   icon: Icons.agriculture_outlined,
                   title: 'Farm Type',
-                  value: 'Sericulture',
+                  value: displayFarmType,
                   onTap: () => context.push('/settings/profile'),
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE2E8F0)),
@@ -279,7 +290,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
 
-          // 4. Section: App & System
+          // 4. Section: App / System
           _buildSectionTitle('App / System'),
           const SizedBox(height: 8),
           Container(

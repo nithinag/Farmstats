@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../shared/widgets/layout_components.dart';
+import '../../../../shared/widgets/farmer_avatar.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/radius.dart';
 import '../../../../core/theme/color_scheme.dart';
@@ -88,34 +89,11 @@ class DashboardScreen extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Farmer Profile Avatar with subtle border
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColorScheme.primary.withValues(alpha: 0.25), width: 1.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.06),
-                              blurRadius: 6,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(22),
-                          child: Image.asset(
-                            'assets/images/farmer_avatar.jpg',
-                            fit: BoxFit.cover,
-                            errorBuilder: (ctx, err, stack) => Container(
-                              color: const Color(0xFFE8F5E9),
-                              child: const Center(
-                                child: Icon(Icons.person, color: AppColorScheme.primary, size: 24),
-                              ),
-                            ),
-                          ),
-                        ),
+                      // Farmer Profile Avatar with persistent state
+                      FarmerAvatar(
+                        photoPath: profile?.photoPath,
+                        name: farmerName,
+                        size: 44,
                       ),
                       const SizedBox(width: 12),
                       Column(

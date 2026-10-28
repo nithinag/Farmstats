@@ -15,6 +15,8 @@ abstract class FarmProfileModel with _$FarmProfileModel {
     @Default(0.0) double farmArea,
     @Default(0) int numRearingHouses,
     @Default('V1') String defaultMulberryVariety,
+    @Default('Sericulture') String farmType,
+    @Default('') String photoPath,
   }) = _FarmProfileModel;
 
   factory FarmProfileModel.fromJson(Map<String, dynamic> json) => _$FarmProfileModelFromJson(json);

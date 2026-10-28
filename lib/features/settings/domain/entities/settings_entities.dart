@@ -20,6 +20,8 @@ abstract class FarmProfile with _$FarmProfile {
     @Default(0.0) double farmArea,
     @Default(0) int numRearingHouses,
     @Default('V1') String defaultMulberryVariety,
+    @Default('Sericulture') String farmType,
+    @Default('') String photoPath,
   }) = _FarmProfile;
 }
 

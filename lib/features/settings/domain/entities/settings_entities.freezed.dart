@@ -23,6 +23,8 @@ mixin _$FarmProfile {
   double get farmArea;
   int get numRearingHouses;
   String get defaultMulberryVariety;
+  String get farmType;
+  String get photoPath;
 
   /// Create a copy of FarmProfile
   /// with the given fields replaced by the non-null parameter values.
@@ -50,7 +52,11 @@ mixin _$FarmProfile {
             (identical(other.numRearingHouses, numRearingHouses) ||
                 other.numRearingHouses == numRearingHouses) &&
             (identical(other.defaultMulberryVariety, defaultMulberryVariety) ||
-                other.defaultMulberryVariety == defaultMulberryVariety));
+                other.defaultMulberryVariety == defaultMulberryVariety) &&
+            (identical(other.farmType, farmType) ||
+                other.farmType == farmType) &&
+            (identical(other.photoPath, photoPath) ||
+                other.photoPath == photoPath));
   }
 
   @override
@@ -64,11 +70,13 @@ mixin _$FarmProfile {
       gstNumber,
       farmArea,
       numRearingHouses,
-      defaultMulberryVariety);
+      defaultMulberryVariety,
+      farmType,
+      photoPath);
 
   @override
   String toString() {
-    return 'FarmProfile(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety)';
+    return 'FarmProfile(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety, farmType: $farmType, photoPath: $photoPath)';
   }
 }
 
@@ -87,7 +95,9 @@ abstract mixin class $FarmProfileCopyWith<$Res> {
       String gstNumber,
       double farmArea,
       int numRearingHouses,
-      String defaultMulberryVariety});
+      String defaultMulberryVariety,
+      String farmType,
+      String photoPath});
 }
 
 /// @nodoc
@@ -111,6 +121,8 @@ class _$FarmProfileCopyWithImpl<$Res> implements $FarmProfileCopyWith<$Res> {
     Object? farmArea = null,
     Object? numRearingHouses = null,
     Object? defaultMulberryVariety = null,
+    Object? farmType = null,
+    Object? photoPath = null,
   }) {
     return _then(_self.copyWith(
       farmName: null == farmName
@@ -148,6 +160,14 @@ class _$FarmProfileCopyWithImpl<$Res> implements $FarmProfileCopyWith<$Res> {
       defaultMulberryVariety: null == defaultMulberryVariety
           ? _self.defaultMulberryVariety
           : defaultMulberryVariety // ignore: cast_nullable_to_non_nullable
+              as String,
+      farmType: null == farmType
+          ? _self.farmType
+          : farmType // ignore: cast_nullable_to_non_nullable
+              as String,
+      photoPath: null == photoPath
+          ? _self.photoPath
+          : photoPath // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }
@@ -255,7 +275,9 @@ extension FarmProfilePatterns on FarmProfile {
             String gstNumber,
             double farmArea,
             int numRearingHouses,
-            String defaultMulberryVariety)?
+            String defaultMulberryVariety,
+            String farmType,
+            String photoPath)?
         $default, {
     required TResult orElse(),
   }) {
@@ -271,7 +293,9 @@ extension FarmProfilePatterns on FarmProfile {
             _that.gstNumber,
             _that.farmArea,
             _that.numRearingHouses,
-            _that.defaultMulberryVariety);
+            _that.defaultMulberryVariety,
+            _that.farmType,
+            _that.photoPath);
       case _:
         return orElse();
     }
@@ -301,7 +325,9 @@ extension FarmProfilePatterns on FarmProfile {
             String gstNumber,
             double farmArea,
             int numRearingHouses,
-            String defaultMulberryVariety)
+            String defaultMulberryVariety,
+            String farmType,
+            String photoPath)
         $default,
   ) {
     final _that = this;
@@ -316,7 +342,9 @@ extension FarmProfilePatterns on FarmProfile {
             _that.gstNumber,
             _that.farmArea,
             _that.numRearingHouses,
-            _that.defaultMulberryVariety);
+            _that.defaultMulberryVariety,
+            _that.farmType,
+            _that.photoPath);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -345,7 +373,9 @@ extension FarmProfilePatterns on FarmProfile {
             String gstNumber,
             double farmArea,
             int numRearingHouses,
-            String defaultMulberryVariety)?
+            String defaultMulberryVariety,
+            String farmType,
+            String photoPath)?
         $default,
   ) {
     final _that = this;
@@ -360,7 +390,9 @@ extension FarmProfilePatterns on FarmProfile {
             _that.gstNumber,
             _that.farmArea,
             _that.numRearingHouses,
-            _that.defaultMulberryVariety);
+            _that.defaultMulberryVariety,
+            _that.farmType,
+            _that.photoPath);
       case _:
         return null;
     }
@@ -379,7 +411,9 @@ class _FarmProfile implements FarmProfile {
       this.gstNumber = '',
       this.farmArea = 0.0,
       this.numRearingHouses = 0,
-      this.defaultMulberryVariety = 'V1'});
+      this.defaultMulberryVariety = 'V1',
+      this.farmType = 'Sericulture',
+      this.photoPath = ''});
 
   @override
   @JsonKey()
@@ -408,6 +442,12 @@ class _FarmProfile implements FarmProfile {
   @override
   @JsonKey()
   final String defaultMulberryVariety;
+  @override
+  @JsonKey()
+  final String farmType;
+  @override
+  @JsonKey()
+  final String photoPath;
 
   /// Create a copy of FarmProfile
   /// with the given fields replaced by the non-null parameter values.
@@ -436,7 +476,11 @@ class _FarmProfile implements FarmProfile {
             (identical(other.numRearingHouses, numRearingHouses) ||
                 other.numRearingHouses == numRearingHouses) &&
             (identical(other.defaultMulberryVariety, defaultMulberryVariety) ||
-                other.defaultMulberryVariety == defaultMulberryVariety));
+                other.defaultMulberryVariety == defaultMulberryVariety) &&
+            (identical(other.farmType, farmType) ||
+                other.farmType == farmType) &&
+            (identical(other.photoPath, photoPath) ||
+                other.photoPath == photoPath));
   }
 
   @override
@@ -450,11 +494,13 @@ class _FarmProfile implements FarmProfile {
       gstNumber,
       farmArea,
       numRearingHouses,
-      defaultMulberryVariety);
+      defaultMulberryVariety,
+      farmType,
+      photoPath);
 
   @override
   String toString() {
-    return 'FarmProfile(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety)';
+    return 'FarmProfile(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety, farmType: $farmType, photoPath: $photoPath)';
   }
 }
 
@@ -475,7 +521,9 @@ abstract mixin class _$FarmProfileCopyWith<$Res>
       String gstNumber,
       double farmArea,
       int numRearingHouses,
-      String defaultMulberryVariety});
+      String defaultMulberryVariety,
+      String farmType,
+      String photoPath});
 }
 
 /// @nodoc
@@ -499,6 +547,8 @@ class __$FarmProfileCopyWithImpl<$Res> implements _$FarmProfileCopyWith<$Res> {
     Object? farmArea = null,
     Object? numRearingHouses = null,
     Object? defaultMulberryVariety = null,
+    Object? farmType = null,
+    Object? photoPath = null,
   }) {
     return _then(_FarmProfile(
       farmName: null == farmName
@@ -536,6 +586,14 @@ class __$FarmProfileCopyWithImpl<$Res> implements _$FarmProfileCopyWith<$Res> {
       defaultMulberryVariety: null == defaultMulberryVariety
           ? _self.defaultMulberryVariety
           : defaultMulberryVariety // ignore: cast_nullable_to_non_nullable
+              as String,
+      farmType: null == farmType
+          ? _self.farmType
+          : farmType // ignore: cast_nullable_to_non_nullable
+              as String,
+      photoPath: null == photoPath
+          ? _self.photoPath
+          : photoPath // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }

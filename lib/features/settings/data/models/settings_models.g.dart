@@ -17,6 +17,8 @@ _FarmProfileModel _$FarmProfileModelFromJson(Map<String, dynamic> json) =>
       farmArea: (json['farmArea'] as num?)?.toDouble() ?? 0.0,
       numRearingHouses: (json['numRearingHouses'] as num?)?.toInt() ?? 0,
       defaultMulberryVariety: json['defaultMulberryVariety'] as String? ?? 'V1',
+      farmType: json['farmType'] as String? ?? 'Sericulture',
+      photoPath: json['photoPath'] as String? ?? '',
     );
 
 Map<String, dynamic> _$FarmProfileModelToJson(_FarmProfileModel instance) =>
@@ -30,6 +32,8 @@ Map<String, dynamic> _$FarmProfileModelToJson(_FarmProfileModel instance) =>
       'farmArea': instance.farmArea,
       'numRearingHouses': instance.numRearingHouses,
       'defaultMulberryVariety': instance.defaultMulberryVariety,
+      'farmType': instance.farmType,
+      'photoPath': instance.photoPath,
     };
 
 _AppPreferencesModel _$AppPreferencesModelFromJson(Map<String, dynamic> json) =>
