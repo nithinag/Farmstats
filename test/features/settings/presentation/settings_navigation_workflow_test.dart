@@ -89,7 +89,7 @@ void main() {
       expect(find.text('Feeding, stock and pending-wage notifications'), findsOneWidget);
 
       expect(find.text('Security & App'), findsOneWidget);
-      expect(find.text('App lock, About FARMSTATS and available support options'), findsOneWidget);
+      expect(find.text('App lock, About FARMSTATS and support options'), findsOneWidget);
 
       // Check Reset All Data card
       expect(find.text('Reset All Data'), findsOneWidget);
@@ -102,11 +102,16 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should now be on Farm Profile screen
-      expect(find.text('SERICULTURE FARM CONFIGURATION'), findsOneWidget);
+      expect(find.text('Farmer & Farm'), findsOneWidget);
+      expect(find.text('Sericulture Configuration'), findsOneWidget);
+      expect(find.text('Contact Information'), findsOneWidget);
       expect(find.text('Edit'), findsOneWidget);
       expect(find.text('2.5 Acres'), findsOneWidget);
       expect(find.text('1 Unit(s)'), findsOneWidget);
       expect(find.text('V1'), findsOneWidget);
+
+      // Verify redundant bottom Edit Farm Profile button is removed
+      expect(find.widgetWithText(FilledButton, 'Edit Farm Profile'), findsNothing);
 
       // Tap Edit button in AppBar
       await tester.tap(find.text('Edit'));
@@ -114,8 +119,12 @@ void main() {
 
       // Should now be on Edit Farm Profile screen
       expect(find.text('Edit Farm Profile'), findsOneWidget);
-      expect(find.text('FARMER & FARM'), findsOneWidget);
-      expect(find.text('SERICULTURE CONFIGURATION'), findsOneWidget);
+      expect(find.text('Profile Photo'), findsOneWidget);
+      expect(find.text('Farmer & Farm'), findsOneWidget);
+      expect(find.text('Sericulture Configuration'), findsOneWidget);
+      expect(find.text('Contact Information'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Save Profile'), findsOneWidget);
     });
   });
 }

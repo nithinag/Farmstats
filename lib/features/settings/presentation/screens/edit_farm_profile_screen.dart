@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:country_picker/country_picker.dart';
-import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/color_scheme.dart';
 import '../../../../shared/widgets/farmer_avatar.dart';
 import '../../application/services/profile_photo_service.dart';
+import '../../application/services/settings_validator_service.dart';
 import '../../application/providers/settings_notifier.dart';
 import '../../application/providers/settings_state.dart';
 import '../../domain/entities/settings_entities.dart';
-import '../widgets/country_phone_field.dart';
+import 'select_country_screen.dart';
 
 class EditFarmProfileScreen extends ConsumerStatefulWidget {
   const EditFarmProfileScreen({super.key});
@@ -26,7 +26,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
   late TextEditingController _phoneCtrl;
   late TextEditingController _areaCtrl;
   late TextEditingController _rearingHousesCtrl;
-  late TextEditingController _mulberryVarietyCtrl;
+  String _selectedVariety = 'V1';
 
   // Local editing photo state (separate from persisted profile)
   String _photoPath = '';
@@ -42,7 +42,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
   String _initialDialCode = '+91';
   String _initialArea = '';
   String _initialHouses = '';
-  String _initialVariety = '';
+  String _initialVariety = 'V1';
   String _initialPhotoPath = '';
 
   bool _initialized = false;
@@ -57,7 +57,6 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
     _phoneCtrl = TextEditingController();
     _areaCtrl = TextEditingController();
     _rearingHousesCtrl = TextEditingController();
-    _mulberryVarietyCtrl = TextEditingController();
   }
 
   @override
@@ -73,10 +72,10 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
     final state = ref.read(settingsNotifierProvider);
     if (state is SettingsStateData) {
       final p = state.profile;
-      _initialOwnerName = p.ownerName.isNotEmpty ? p.ownerName : 'Farmer';
-      _initialFarmName = p.farmName.isNotEmpty ? p.farmName : 'My Sericulture Farm';
-      _initialAddress = p.address.isNotEmpty ? p.address : 'Karnataka, India';
-      _initialPhone = p.phone;
+      _initialOwnerName = p.ownerName.trim();
+      _initialFarmName = p.farmName.trim();
+      _initialAddress = p.address.trim();
+      _initialPhone = p.phone.trim();
       _initialCountryCode = p.countryCode.isNotEmpty ? p.countryCode : 'IN';
       _initialDialCode = p.dialCode.isNotEmpty ? p.dialCode : '+91';
       _initialArea = p.farmArea > 0 ? p.farmArea.toString() : '2.5';
@@ -92,7 +91,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
       _dialCode = _initialDialCode;
       _areaCtrl.text = _initialArea;
       _rearingHousesCtrl.text = _initialHouses;
-      _mulberryVarietyCtrl.text = _initialVariety;
+      _selectedVariety = _initialVariety;
       _photoPath = _initialPhotoPath;
     }
   }
@@ -106,7 +105,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
         _dialCode != _initialDialCode ||
         _areaCtrl.text.trim() != _initialArea ||
         _rearingHousesCtrl.text.trim() != _initialHouses ||
-        _mulberryVarietyCtrl.text.trim() != _initialVariety ||
+        _selectedVariety != _initialVariety ||
         _photoPath.trim() != _initialPhotoPath.trim();
   }
 
@@ -122,7 +121,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Keep Editing'),
+              child: const Text('Continue Editing'),
             ),
             FilledButton(
               style: FilledButton.styleFrom(
@@ -130,7 +129,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
                 foregroundColor: Colors.white,
               ),
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Discard'),
+              child: const Text('Discard Changes'),
             ),
           ],
         );
@@ -162,8 +161,28 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
     );
   }
 
+  Future<void> _openCountryPicker() async {
+    final selectedCountry = await Navigator.push<Country>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SelectCountryScreen(selectedCountryCode: _countryCode),
+      ),
+    );
+
+    if (selectedCountry != null && mounted) {
+      setState(() {
+        _countryCode = selectedCountry.countryCode;
+        _dialCode = '+${selectedCountry.phoneCode}';
+      });
+    }
+  }
+
   Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isSaving) return; // Prevent double taps
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -181,7 +200,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
         dialCode: _dialCode,
         farmArea: double.tryParse(_areaCtrl.text.trim()) ?? 0.0,
         numRearingHouses: int.tryParse(_rearingHousesCtrl.text.trim()) ?? 1,
-        defaultMulberryVariety: _mulberryVarietyCtrl.text.trim().isNotEmpty ? _mulberryVarietyCtrl.text.trim() : 'V1',
+        defaultMulberryVariety: _selectedVariety,
         photoPath: _photoPath.trim(),
       );
 
@@ -220,7 +239,6 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
     _phoneCtrl.dispose();
     _areaCtrl.dispose();
     _rearingHousesCtrl.dispose();
-    _mulberryVarietyCtrl.dispose();
     super.dispose();
   }
 
@@ -232,6 +250,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
     return InputDecoration(
       labelText: labelText,
       hintText: hintText,
+      labelStyle: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
       prefixIcon: Icon(prefixIcon, size: 20, color: const Color(0xFF64748B)),
       filled: true,
       fillColor: const Color(0xFFF8FAFC),
@@ -261,14 +280,13 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, top: 4.0),
+      padding: const EdgeInsets.only(bottom: 10.0, top: 4.0),
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 12,
+          fontSize: 14,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF64748B),
-          letterSpacing: 0.8,
+          color: Color(0xFF0F1E36),
         ),
       ),
     );
@@ -277,6 +295,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final previewName = _ownerNameCtrl.text.isNotEmpty ? _ownerNameCtrl.text : 'Farmer';
+    final flag = Country.tryParse(_countryCode)?.flagEmoji ?? '🇮🇳';
 
     return PopScope(
       canPop: !_hasUnsavedChanges,
@@ -298,71 +317,102 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
           title: const Text(
             'Edit Farm Profile',
             style: TextStyle(
-              color: Color(0xFF1E293B),
+              color: Color(0xFF0F1E36),
               fontWeight: FontWeight.w700,
               fontSize: 18,
             ),
           ),
           centerTitle: true,
           actions: [
-            IconButton(
-              icon: _isSaving
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColorScheme.forestGreen),
-                    )
-                  : const Icon(Icons.check, color: AppColorScheme.forestGreen, size: 26),
-              tooltip: 'Save Profile',
-              onPressed: _isSaving ? null : _saveProfile,
+            Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
+                icon: _isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColorScheme.forestGreen),
+                      )
+                    : const Icon(Icons.check, color: AppColorScheme.forestGreen, size: 26),
+                tooltip: 'Save Profile',
+                onPressed: _isSaving ? null : _saveProfile,
+              ),
             ),
           ],
         ),
         body: Form(
           key: _formKey,
           child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             children: [
               // SECTION 1: PROFILE PHOTO
-              _buildSectionHeader('PROFILE PHOTO'),
+              _buildSectionHeader('Profile Photo'),
               Center(
                 child: Column(
                   children: [
-                    FarmerAvatar(
-                      photoPath: _photoPath,
-                      name: previewName,
-                      size: 92,
-                      showEditBadge: true,
-                      badgeIcon: Icons.camera_alt_rounded,
-                      badgeColor: AppColorScheme.forestGreen,
-                      onTap: _pickPhoto,
-                      onBadgeTap: _pickPhoto,
+                    Stack(
+                      children: [
+                        Container(
+                          width: 82,
+                          height: 82,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: const Color(0xFFE2E8F0), width: 2),
+                          ),
+                          child: FarmerAvatar(
+                            photoPath: _photoPath,
+                            name: previewName,
+                            size: 78,
+                          ),
+                        ),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: InkWell(
+                            onTap: _pickPhoto,
+                            borderRadius: BorderRadius.circular(16),
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: AppColorScheme.forestGreen,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         OutlinedButton.icon(
                           onPressed: _pickPhoto,
-                          icon: const Icon(Icons.photo_library_outlined, size: 16),
-                          label: Text(_photoPath.isNotEmpty ? 'Change Photo' : 'Upload Photo'),
+                          icon: const Icon(Icons.image_outlined, size: 16),
+                          label: const Text('Change Photo'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColorScheme.primary,
-                            side: const BorderSide(color: Color(0xFFCBD5E1)),
+                            side: const BorderSide(color: AppColorScheme.primary),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           ),
                         ),
                         if (_photoPath.isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          TextButton.icon(
+                          const SizedBox(width: 10),
+                          OutlinedButton.icon(
                             onPressed: () {
                               setState(() => _photoPath = '');
                             },
-                            icon: const Icon(Icons.delete_outline, size: 16, color: AppColorScheme.error),
-                            label: const Text(
-                              'Remove Photo',
-                              style: TextStyle(color: AppColorScheme.error, fontWeight: FontWeight.w600),
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('Remove Photo'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColorScheme.error,
+                              side: const BorderSide(color: AppColorScheme.error),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             ),
                           ),
                         ],
@@ -371,108 +421,218 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: 22),
 
               // SECTION 2: FARMER & FARM
-              _buildSectionHeader('FARMER & FARM'),
+              _buildSectionHeader('Farmer & Farm'),
               TextFormField(
                 controller: _ownerNameCtrl,
                 decoration: _inputDecoration(
                   labelText: 'Farmer / Owner Name *',
-                  hintText: 'e.g. Nithin Nagabushanam',
+                  hintText: 'e.g. Leetej Nagabushanam',
                   prefixIcon: Icons.person_outline,
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Farmer name is required' : null,
+                validator: SettingsValidatorService.validateOwnerName,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _farmNameCtrl,
                 decoration: _inputDecoration(
                   labelText: 'Farm Name *',
                   hintText: 'e.g. My Sericulture Farm',
-                  prefixIcon: Icons.business_outlined,
+                  prefixIcon: Icons.apartment_outlined,
                 ),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Farm name is required' : null,
+                validator: SettingsValidatorService.validateFarmName,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: AppSpacing.md),
+              const SizedBox(height: 14),
               TextFormField(
                 controller: _addressCtrl,
                 decoration: _inputDecoration(
-                  labelText: 'Location / Farm Address',
-                  hintText: 'e.g. Chittoor, Andhra Pradesh',
+                  labelText: 'Location / Address *',
+                  hintText: 'e.g. Karnataka, India',
                   prefixIcon: Icons.location_on_outlined,
                 ),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Location is required' : null,
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              const SizedBox(height: 22),
 
               // SECTION 3: SERICULTURE CONFIGURATION
-              _buildSectionHeader('SERICULTURE CONFIGURATION'),
+              _buildSectionHeader('Sericulture Configuration'),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: TextFormField(
                       controller: _areaCtrl,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       decoration: _inputDecoration(
-                        labelText: 'Farm Area (Acres)',
+                        labelText: 'Farm Area (Acres) *',
                         hintText: '2.5',
                         prefixIcon: Icons.landscape_outlined,
                       ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Area required';
+                        final num = double.tryParse(v.trim());
+                        if (num == null || num <= 0) return 'Invalid area';
+                        return null;
+                      },
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: TextFormField(
                       controller: _rearingHousesCtrl,
                       keyboardType: TextInputType.number,
                       decoration: _inputDecoration(
-                        labelText: 'Rearing Houses',
+                        labelText: 'Rearing Houses *',
                         hintText: '1',
                         prefixIcon: Icons.home_work_outlined,
                       ),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return 'Houses required';
+                        final num = int.tryParse(v.trim());
+                        if (num == null || num <= 0) return 'Invalid count';
+                        return null;
+                      },
                       onChanged: (_) => setState(() {}),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.md),
-              TextFormField(
-                controller: _mulberryVarietyCtrl,
+              const SizedBox(height: 14),
+              DropdownButtonFormField<String>(
+                initialValue: _selectedVariety,
                 decoration: _inputDecoration(
-                  labelText: 'Mulberry Variety',
-                  hintText: 'e.g. V1, S36, G4',
+                  labelText: 'Mulberry Variety *',
                   prefixIcon: Icons.eco_outlined,
                 ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-
-              // SECTION 4: CONTACT
-              _buildSectionHeader('CONTACT'),
-              CountryPhoneField(
-                controller: _phoneCtrl,
-                countryCode: _countryCode,
-                dialCode: _dialCode,
-                onCountrySelected: (Country country) {
-                  setState(() {
-                    _countryCode = country.countryCode;
-                    _dialCode = '+${country.phoneCode}';
-                  });
+                icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B)),
+                items: const [
+                  DropdownMenuItem(value: 'V1', child: Text('V1')),
+                  DropdownMenuItem(value: 'G4', child: Text('G4')),
+                  DropdownMenuItem(value: 'S36', child: Text('S36')),
+                  DropdownMenuItem(value: 'DD', child: Text('DD')),
+                  DropdownMenuItem(value: 'Other', child: Text('Other')),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedVariety = val);
+                  }
                 },
-                onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: 22),
 
-              // Bottom Action Buttons
+              // SECTION 4: CONTACT INFORMATION
+              _buildSectionHeader('Contact Information'),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Country Code Picker Box
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Country Code',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+                      ),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: _openCountryPicker,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          height: 52,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(flag, style: const TextStyle(fontSize: 18)),
+                              const SizedBox(width: 4),
+                              Text(
+                                _dialCode,
+                                style: const TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0F1E36),
+                                ),
+                              ),
+                              const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  // Phone Number Input
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Phone Number',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF64748B)),
+                        ),
+                        const SizedBox(height: 6),
+                        TextFormField(
+                          controller: _phoneCtrl,
+                          keyboardType: TextInputType.phone,
+                          decoration: InputDecoration(
+                            hintText: _countryCode == 'IN' ? '7418661938' : 'Phone Number',
+                            prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: Color(0xFF64748B)),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColorScheme.primary, width: 1.5),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColorScheme.error),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: AppColorScheme.error, width: 1.5),
+                            ),
+                          ),
+                          validator: (val) => SettingsValidatorService.validateCountryPhone(
+                            val,
+                            countryCode: _countryCode,
+                            dialCode: _dialCode,
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              // Bottom Action Buttons matching Screen 3
               Row(
                 children: [
                   Expanded(
+                    flex: 1,
                     child: SizedBox(
-                      height: 48,
+                      height: 50,
                       child: OutlinedButton(
                         onPressed: _handleBackPress,
                         style: OutlinedButton.styleFrom(
@@ -490,10 +650,11 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
+                  const SizedBox(width: 14),
                   Expanded(
+                    flex: 2,
                     child: SizedBox(
-                      height: 48,
+                      height: 50,
                       child: FilledButton.icon(
                         onPressed: _isSaving ? null : _saveProfile,
                         icon: _isSaving
@@ -502,13 +663,13 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
                                 height: 18,
                                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                               )
-                            : const Icon(Icons.save_outlined, size: 20),
+                            : const Icon(Icons.check_circle_outline, size: 20),
                         label: Text(
                           _isSaving ? 'Saving...' : 'Save Profile',
-                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
                         ),
                         style: FilledButton.styleFrom(
-                          backgroundColor: AppColorScheme.primary,
+                          backgroundColor: const Color(0xFF13532D),
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         ),
@@ -517,7 +678,7 @@ class _EditFarmProfileScreenState extends ConsumerState<EditFarmProfileScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xxl),
+              const SizedBox(height: 32),
             ],
           ),
         ),

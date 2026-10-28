@@ -35,9 +35,9 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
   int _currentPage = 0;
 
   // Farm Setup fields
-  final _farmNameController = TextEditingController(text: 'Green Valley Sericulture Farm');
-  final _ownerNameController = TextEditingController(text: 'Farmer');
-  final _locationController = TextEditingController(text: 'Ramanagara, Karnataka');
+  final _farmNameController = TextEditingController(text: 'My Sericulture Farm');
+  final _ownerNameController = TextEditingController();
+  final _locationController = TextEditingController(text: 'Karnataka, India');
 
   // First Batch fields
   final _batchNameController = TextEditingController(text: 'Batch #001');

@@ -101,8 +101,8 @@ class SettingsScreen extends ConsumerWidget {
             address: 'Chittoor, Andhra Pradesh',
           );
 
-    final displayName = profile.ownerName.isNotEmpty ? profile.ownerName : 'Farmer';
-    final displayFarmName = profile.farmName.isNotEmpty ? profile.farmName : 'My Sericulture Farm';
+    final displayName = profile.ownerName.trim().isNotEmpty ? profile.ownerName.trim() : 'Sericulture Farmer';
+    final displayFarmName = profile.farmName.trim().isNotEmpty ? profile.farmName.trim() : 'My Sericulture Farm';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F8),
@@ -283,7 +283,7 @@ class SettingsScreen extends ConsumerWidget {
             _buildNavigationCard(
               icon: Icons.shield_outlined,
               title: 'Security & App',
-              subtitle: 'App lock, About FARMSTATS and available support options',
+              subtitle: 'App lock, About FARMSTATS and support options',
               onTap: () => context.push('/settings/security-app'),
             ),
 
