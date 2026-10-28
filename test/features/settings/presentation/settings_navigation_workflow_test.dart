@@ -13,6 +13,13 @@ import 'package:farmstats/features/settings/domain/entities/settings_entities.da
 void main() {
   group('Settings & Profile Navigation Workflow Tests', () {
     testWidgets('Settings renders Farm Profile navigation row and navigates to FarmProfileScreen and EditFarmProfileScreen', (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
       SharedPreferences.setMockInitialValues({});
       final sharedPreferences = await SharedPreferences.getInstance();
 
@@ -62,16 +69,23 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Check Settings shows FARM PROFILE section
+      // Check Settings shows FARM PROFILE section with green card details
+      expect(find.text('Settings'), findsOneWidget);
       expect(find.text('FARM PROFILE'), findsOneWidget);
-      expect(find.text('Farm Profile'), findsOneWidget);
-      expect(find.text('Nithin Nagabushanam • My Sericulture Farm'), findsOneWidget);
+      expect(find.text('Nithin Nagabushanam'), findsOneWidget);
+      expect(find.text('My Sericulture Farm'), findsOneWidget);
+      expect(find.text('Sericulture Farmer'), findsOneWidget);
+
+      // Check PREFERENCES, APP & DATA and Reset All Data sections exist
+      expect(find.text('PREFERENCES'), findsOneWidget);
+      expect(find.text('APP & DATA'), findsOneWidget);
+      expect(find.text('Reset All Data'), findsOneWidget);
 
       // Verify no inline edit controls beside fields
       expect(find.text('Edit Farm Details'), findsNothing);
 
-      // Tap on Farm Profile navigation row
-      await tester.tap(find.text('Farm Profile'));
+      // Tap on Farm Profile card
+      await tester.tap(find.text('Nithin Nagabushanam'));
       await tester.pumpAndSettle();
 
       // Should now be on Farm Profile screen

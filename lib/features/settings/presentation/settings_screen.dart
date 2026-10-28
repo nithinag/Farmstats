@@ -1,7 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/color_scheme.dart';
 import '../../../../shared/widgets/farmer_avatar.dart';
 import '../application/providers/settings_notifier.dart';
@@ -112,187 +112,326 @@ class SettingsScreen extends ConsumerWidget {
     final displayFarmName = profile.farmName.isNotEmpty ? profile.farmName : 'My Sericulture Farm';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAFA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          'Settings',
-          style: TextStyle(
-            color: Color(0xFF1E293B),
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
-        children: [
-          // 1. SECTION: FARM PROFILE NAVIGATION ROW
-          _buildSectionHeader('FARM PROFILE'),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+      backgroundColor: const Color(0xFFF7F9F8),
+      body: SafeArea(
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          children: [
+            // Screen Title: Settings
+            const Padding(
+              padding: EdgeInsets.only(left: 4.0, top: 4.0, bottom: 20.0),
+              child: Text(
+                'Settings',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F1E36),
+                  letterSpacing: -0.5,
                 ),
-              ],
+              ),
             ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => context.push('/settings/profile'),
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Row(
-                    children: [
-                      FarmerAvatar(
-                        photoPath: profile.photoPath,
-                        name: displayName,
-                        size: 46,
+
+            // 1. SECTION: FARM PROFILE
+            _buildSectionHeader('FARM PROFILE'),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF13532D),
+                    Color(0xFF0E3E21),
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF13532D).withValues(alpha: 0.18),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    // Botanical leaf decoration on bottom right
+                    const Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: CustomPaint(
+                        size: Size(130, 110),
+                        painter: _ProfileCardLeafPainter(),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Farm Profile',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1E293B),
+                    ),
+                    // Tappable Card Content
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => context.push('/settings/profile'),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 58,
+                                    height: 58,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.white, width: 2),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.12),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: FarmerAvatar(
+                                      photoPath: profile.photoPath,
+                                      name: displayName,
+                                      size: 54,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          displayName,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 17.5,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: -0.2,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          displayFarmName,
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.85),
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w400,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    size: 22,
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                  ),
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              '$displayName • $displayFarmName',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFF64748B),
+                              const SizedBox(height: 18),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.eco_rounded,
+                                    size: 18,
+                                    color: Color(0xFF7CE49F),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Sericulture Farmer',
+                                    style: TextStyle(
+                                      color: const Color(0xFFB4EAC4).withValues(alpha: 0.95),
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.1,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                      const Icon(Icons.chevron_right, size: 22, color: Color(0xFF94A3B8)),
-                    ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // 2. SECTION: PREFERENCES
+            _buildSectionHeader('PREFERENCES'),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1E293B).withValues(alpha: 0.035),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Column(
+                  children: [
+                    _buildRowItem(
+                      icon: Icons.language_rounded,
+                      title: 'Language',
+                      value: currentLang.englishName,
+                      onTap: () => context.push('/settings/language'),
+                    ),
+                    const Divider(
+                      height: 1,
+                      indent: 70,
+                      endIndent: 16,
+                      color: Color(0xFFF1F5F9),
+                    ),
+                    _buildRowItem(
+                      icon: Icons.currency_rupee,
+                      title: 'Currency',
+                      value: 'INR (₹)',
+                      onTap: () => context.push('/settings/preferences'),
+                    ),
+                    const Divider(
+                      height: 1,
+                      indent: 70,
+                      endIndent: 16,
+                      color: Color(0xFFF1F5F9),
+                    ),
+                    _buildRowItem(
+                      icon: Icons.straighten_outlined,
+                      title: 'Units',
+                      value: 'kg, °C, Acres',
+                      onTap: () => context.push('/settings/preferences'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // 3. SECTION: APP & DATA
+            _buildSectionHeader('APP & DATA'),
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF1E293B).withValues(alpha: 0.035),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Column(
+                  children: [
+                    _buildRowItem(
+                      icon: Icons.cloud_upload_outlined,
+                      title: 'Backup & Restore',
+                      onTap: () => context.push('/settings/backup'),
+                    ),
+                    const Divider(
+                      height: 1,
+                      indent: 70,
+                      endIndent: 16,
+                      color: Color(0xFFF1F5F9),
+                    ),
+                    _buildRowItem(
+                      icon: Icons.download_outlined,
+                      title: 'Export Records (CSV)',
+                      onTap: () => context.push('/settings/backup'),
+                    ),
+                    const Divider(
+                      height: 1,
+                      indent: 70,
+                      endIndent: 16,
+                      color: Color(0xFFF1F5F9),
+                    ),
+                    _buildRowItem(
+                      icon: Icons.info_outline_rounded,
+                      title: 'About FARMSTATS',
+                      onTap: () => context.push('/settings/about'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // 4. RESET ALL DATA (Pale red card)
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFFFDF2F2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFFEE2E2), width: 1),
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => _showResetConfirmation(context, ref),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFEE2E2),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            size: 20,
+                            color: Color(0xFFEF4444),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        const Expanded(
+                          child: Text(
+                            'Reset All Data',
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFFEF4444),
+                            ),
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Color(0xFFEF4444),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
 
-          // 2. SECTION: PREFERENCES
-          _buildSectionHeader('PREFERENCES'),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _buildValueRow(
-                  icon: Icons.language_outlined,
-                  title: 'Language',
-                  value: currentLang.englishName,
-                  onTap: () => context.push('/settings/language'),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE2E8F0)),
-                _buildValueRow(
-                  icon: Icons.currency_rupee,
-                  title: 'Currency',
-                  value: 'INR (₹)',
-                  onTap: () => context.push('/settings/preferences'),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE2E8F0)),
-                _buildValueRow(
-                  icon: Icons.straighten_outlined,
-                  title: 'Units',
-                  value: 'kg, °C, Acres',
-                  onTap: () => context.push('/settings/preferences'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // 3. SECTION: APP & DATA
-          _buildSectionHeader('APP & DATA'),
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.02),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                _buildActionRow(
-                  icon: Icons.backup_outlined,
-                  title: 'Backup & Restore',
-                  onTap: () => context.push('/settings/backup'),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE2E8F0)),
-                _buildActionRow(
-                  icon: Icons.file_download_outlined,
-                  title: 'Export Records (CSV)',
-                  onTap: () => context.push('/settings/backup'),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16, color: Color(0xFFE2E8F0)),
-                _buildActionRow(
-                  icon: Icons.info_outline,
-                  title: 'About FARMSTATS',
-                  onTap: () => context.push('/settings/about'),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Danger Zone / Reset
-          Center(
-            child: TextButton.icon(
-              onPressed: () => _showResetConfirmation(context, ref),
-              icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFDC2626)),
-              label: const Text(
-                'Reset All Data',
-                style: TextStyle(color: Color(0xFFDC2626), fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-            ),
-          ),
-          // Ample bottom padding for bottom navigation
-          const SizedBox(height: 60),
-        ],
+            // Ample bottom padding so content scrolls above navigation bar
+            const SizedBox(height: 32),
+          ],
+        ),
       ),
     );
   }
@@ -303,83 +442,170 @@ class SettingsScreen extends ConsumerWidget {
       child: Text(
         title,
         style: const TextStyle(
-          fontSize: 12,
+          fontSize: 12.5,
           fontWeight: FontWeight.w700,
-          color: Color(0xFF64748B),
+          color: Color(0xFF6B7C8E),
           letterSpacing: 0.8,
         ),
       ),
     );
   }
 
-  Widget _buildValueRow({
+  Widget _buildRowItem({
     required IconData icon,
     required String title,
-    required String value,
+    String? value,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFF64748B)),
-            const SizedBox(width: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE8F5EC),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 20, color: const Color(0xFF165B33)),
               ),
-            ),
-            const Spacer(),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F1E36),
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF94A3B8)),
-          ],
+              if (value != null) ...[
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
+              const Icon(Icons.chevron_right, size: 18, color: Color(0xFF94A3B8)),
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Botanical mulberry leaf illustration painted in the bottom-right of the profile card.
+class _ProfileCardLeafPainter extends CustomPainter {
+  const _ProfileCardLeafPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final base = Offset(size.width * 0.98, size.height * 0.98);
+
+    // Leaf 1: Upper-center leaf
+    _drawLeaf(
+      canvas,
+      base: base,
+      tip: Offset(size.width * 0.68, size.height * 0.08),
+      width: 24,
+      fillColor: const Color(0xFF22C55E).withValues(alpha: 0.22),
+      veinColor: const Color(0xFF86EFAC).withValues(alpha: 0.20),
+    );
+
+    // Leaf 2: Main large diagonal leaf
+    _drawLeaf(
+      canvas,
+      base: base,
+      tip: Offset(size.width * 0.32, size.height * 0.28),
+      width: 32,
+      fillColor: const Color(0xFF2E8B57).withValues(alpha: 0.32),
+      veinColor: const Color(0xFF86EFAC).withValues(alpha: 0.25),
+    );
+
+    // Leaf 3: Lower left leaf
+    _drawLeaf(
+      canvas,
+      base: base,
+      tip: Offset(size.width * 0.12, size.height * 0.65),
+      width: 26,
+      fillColor: const Color(0xFF15803D).withValues(alpha: 0.28),
+      veinColor: const Color(0xFF86EFAC).withValues(alpha: 0.22),
+    );
+
+    // Leaf 4: Small lower-right accent leaf
+    _drawLeaf(
+      canvas,
+      base: base,
+      tip: Offset(size.width * 0.48, size.height * 0.90),
+      width: 20,
+      fillColor: const Color(0xFF4ADE80).withValues(alpha: 0.20),
+      veinColor: const Color(0xFF86EFAC).withValues(alpha: 0.18),
     );
   }
 
-  Widget _buildActionRow({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
+  void _drawLeaf(
+    Canvas canvas, {
+    required Offset base,
+    required Offset tip,
+    required double width,
+    required Color fillColor,
+    required Color veinColor,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFF64748B)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-            ),
-            const Icon(Icons.chevron_right, size: 18, color: Color(0xFF94A3B8)),
-          ],
-        ),
-      ),
-    );
+    final dx = tip.dx - base.dx;
+    final dy = tip.dy - base.dy;
+    final length = math.sqrt(dx * dx + dy * dy);
+    if (length == 0) return;
+
+    final nx = -dy / length * width;
+    final ny = dx / length * width;
+
+    final mid = Offset((base.dx + tip.dx) / 2, (base.dy + tip.dy) / 2);
+    final cp1 = Offset(mid.dx + nx, mid.dy + ny);
+    final cp2 = Offset(mid.dx - nx, mid.dy - ny);
+
+    final path = Path()
+      ..moveTo(base.dx, base.dy)
+      ..quadraticBezierTo(cp1.dx, cp1.dy, tip.dx, tip.dy)
+      ..quadraticBezierTo(cp2.dx, cp2.dy, base.dx, base.dy)
+      ..close();
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(path, fillPaint);
+
+    final veinPaint = Paint()
+      ..color = veinColor
+      ..strokeWidth = 1.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
+    // Central vein
+    canvas.drawLine(base, tip, veinPaint);
+
+    // Side veins
+    for (final t in [0.35, 0.55, 0.75]) {
+      final factor = 1.0 - (t - 0.5).abs();
+      final pt = Offset(base.dx + dx * t, base.dy + dy * t);
+      final side1 = Offset(pt.dx + nx * 0.45 * factor, pt.dy + ny * 0.45 * factor);
+      final side2 = Offset(pt.dx - nx * 0.45 * factor, pt.dy - ny * 0.45 * factor);
+      canvas.drawLine(pt, side1, veinPaint);
+      canvas.drawLine(pt, side2, veinPaint);
+    }
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
