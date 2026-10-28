@@ -15,6 +15,8 @@ class SettingsMapper {
       defaultMulberryVariety: model.defaultMulberryVariety,
       farmType: model.farmType,
       photoPath: model.photoPath,
+      countryCode: model.countryCode,
+      dialCode: model.dialCode,
     );
   }
 
@@ -31,6 +33,8 @@ class SettingsMapper {
       defaultMulberryVariety: entity.defaultMulberryVariety,
       farmType: entity.farmType,
       photoPath: entity.photoPath,
+      countryCode: entity.countryCode,
+      dialCode: entity.dialCode,
     );
   }
 

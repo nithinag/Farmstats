@@ -22,6 +22,8 @@ abstract class FarmProfile with _$FarmProfile {
     @Default('V1') String defaultMulberryVariety,
     @Default('Sericulture') String farmType,
     @Default('') String photoPath,
+    @Default('IN') String countryCode,
+    @Default('+91') String dialCode,
   }) = _FarmProfile;
 }
 

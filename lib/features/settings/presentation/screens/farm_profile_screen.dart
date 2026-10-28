@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/color_scheme.dart';
 import '../../../../shared/widgets/farmer_avatar.dart';
@@ -7,6 +8,7 @@ import '../../application/services/profile_photo_service.dart';
 import '../../application/providers/settings_notifier.dart';
 import '../../application/providers/settings_state.dart';
 import '../../domain/entities/settings_entities.dart';
+import '../widgets/country_phone_field.dart';
 
 class FarmProfileScreen extends ConsumerStatefulWidget {
   const FarmProfileScreen({super.key});
@@ -22,19 +24,21 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
   late TextEditingController _ownerNameCtrl;
   late TextEditingController _addressCtrl;
   late TextEditingController _phoneCtrl;
-  late TextEditingController _farmTypeCtrl;
   late TextEditingController _areaCtrl;
   late TextEditingController _rearingHousesCtrl;
   late TextEditingController _mulberryVarietyCtrl;
 
   String _photoPath = '';
+  String _countryCode = 'IN';
+  String _dialCode = '+91';
 
   // Initial snapshot to track unsaved dirty changes
   String _initialFarmName = '';
   String _initialOwnerName = '';
   String _initialAddress = '';
   String _initialPhone = '';
-  String _initialFarmType = '';
+  String _initialCountryCode = 'IN';
+  String _initialDialCode = '+91';
   String _initialArea = '';
   String _initialHouses = '';
   String _initialVariety = '';
@@ -50,7 +54,6 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
     _ownerNameCtrl = TextEditingController();
     _addressCtrl = TextEditingController();
     _phoneCtrl = TextEditingController();
-    _farmTypeCtrl = TextEditingController();
     _areaCtrl = TextEditingController();
     _rearingHousesCtrl = TextEditingController();
     _mulberryVarietyCtrl = TextEditingController();
@@ -73,7 +76,8 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
       _initialOwnerName = p.ownerName.isNotEmpty ? p.ownerName : 'Farmer';
       _initialAddress = p.address.isNotEmpty ? p.address : 'Karnataka, India';
       _initialPhone = p.phone;
-      _initialFarmType = p.farmType.isNotEmpty ? p.farmType : 'Sericulture';
+      _initialCountryCode = p.countryCode.isNotEmpty ? p.countryCode : 'IN';
+      _initialDialCode = p.dialCode.isNotEmpty ? p.dialCode : '+91';
       _initialArea = p.farmArea > 0 ? p.farmArea.toString() : '2.5';
       _initialHouses = p.numRearingHouses > 0 ? p.numRearingHouses.toString() : '1';
       _initialVariety = p.defaultMulberryVariety.isNotEmpty ? p.defaultMulberryVariety : 'V1';
@@ -83,7 +87,8 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
       _ownerNameCtrl.text = _initialOwnerName;
       _addressCtrl.text = _initialAddress;
       _phoneCtrl.text = _initialPhone;
-      _farmTypeCtrl.text = _initialFarmType;
+      _countryCode = _initialCountryCode;
+      _dialCode = _initialDialCode;
       _areaCtrl.text = _initialArea;
       _rearingHousesCtrl.text = _initialHouses;
       _mulberryVarietyCtrl.text = _initialVariety;
@@ -96,7 +101,8 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
         _ownerNameCtrl.text.trim() != _initialOwnerName ||
         _addressCtrl.text.trim() != _initialAddress ||
         _phoneCtrl.text.trim() != _initialPhone ||
-        _farmTypeCtrl.text.trim() != _initialFarmType ||
+        _countryCode != _initialCountryCode ||
+        _dialCode != _initialDialCode ||
         _areaCtrl.text.trim() != _initialArea ||
         _rearingHousesCtrl.text.trim() != _initialHouses ||
         _mulberryVarietyCtrl.text.trim() != _initialVariety ||
@@ -170,7 +176,8 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
         ownerName: _ownerNameCtrl.text.trim(),
         address: _addressCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
-        farmType: _farmTypeCtrl.text.trim().isNotEmpty ? _farmTypeCtrl.text.trim() : 'Sericulture',
+        countryCode: _countryCode,
+        dialCode: _dialCode,
         farmArea: double.tryParse(_areaCtrl.text.trim()) ?? 0.0,
         numRearingHouses: int.tryParse(_rearingHousesCtrl.text.trim()) ?? 1,
         defaultMulberryVariety: _mulberryVarietyCtrl.text.trim().isNotEmpty ? _mulberryVarietyCtrl.text.trim() : 'V1',
@@ -210,7 +217,6 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
     _ownerNameCtrl.dispose();
     _addressCtrl.dispose();
     _phoneCtrl.dispose();
-    _farmTypeCtrl.dispose();
     _areaCtrl.dispose();
     _rearingHousesCtrl.dispose();
     _mulberryVarietyCtrl.dispose();
@@ -316,7 +322,7 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
           child: ListView(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
             children: [
-              // 1. Profile Photo Section
+              // 1. Profile Photo Section with Crop & Preview
               Center(
                 child: Column(
                   children: [
@@ -336,8 +342,8 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
                       children: [
                         OutlinedButton.icon(
                           onPressed: _pickPhoto,
-                          icon: const Icon(Icons.photo_library_outlined, size: 16),
-                          label: Text(_photoPath.isNotEmpty ? 'Change Photo' : 'Upload Photo'),
+                          icon: const Icon(Icons.crop_outlined, size: 16),
+                          label: Text(_photoPath.isNotEmpty ? 'Change & Crop Photo' : 'Upload & Crop Photo'),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColorScheme.primary,
                             side: const BorderSide(color: Color(0xFFCBD5E1)),
@@ -399,30 +405,24 @@ class _FarmProfileScreenState extends ConsumerState<FarmProfileScreen> {
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSpacing.md),
-              TextFormField(
+
+              // Country Dial Code and Mobile Number
+              CountryPhoneField(
                 controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: _inputDecoration(
-                  labelText: 'Contact Phone',
-                  hintText: 'e.g. +91 9876543210',
-                  prefixIcon: Icons.phone_outlined,
-                ),
+                countryCode: _countryCode,
+                dialCode: _dialCode,
+                onCountrySelected: (Country country) {
+                  setState(() {
+                    _countryCode = country.countryCode;
+                    _dialCode = '+${country.phoneCode}';
+                  });
+                },
                 onChanged: (_) => setState(() {}),
               ),
               const SizedBox(height: AppSpacing.lg),
 
-              // 3. Section: Farm Configuration
+              // 3. Section: Farm Configuration (Sericulture Exclusive)
               _buildSectionHeader('FARM CONFIGURATION'),
-              TextFormField(
-                controller: _farmTypeCtrl,
-                decoration: _inputDecoration(
-                  labelText: 'Farm Type',
-                  hintText: 'e.g. Sericulture',
-                  prefixIcon: Icons.agriculture_outlined,
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: AppSpacing.md),
               Row(
                 children: [
                   Expanded(

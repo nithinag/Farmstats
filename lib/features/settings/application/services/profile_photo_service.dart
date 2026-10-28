@@ -1,42 +1,49 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
+import '../../presentation/screens/image_crop_screen.dart';
 import '../../../../core/theme/color_scheme.dart';
 
 class ProfilePhotoService {
   static final ImagePicker _picker = ImagePicker();
 
-  /// Picks an image from [source] and copies it to durable app documents storage.
+  /// Picks an image from [source], opens the interactive [ImageCropScreen],
+  /// and saves the cropped square avatar with circular preview into persistent storage.
   /// Returns the persistent file path, or null if cancelled / failed.
-  static Future<String?> pickAndSaveImage(ImageSource source) async {
+  static Future<String?> pickAndCropImage(BuildContext context, ImageSource source) async {
     try {
       final picked = await _picker.pickImage(
         source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 88,
+        maxWidth: 2048,
+        maxHeight: 2048,
+        imageQuality: 95,
       );
 
       if (picked == null) {
         return null;
       }
 
-      final appDir = await getApplicationDocumentsDirectory();
-      final photosDir = Directory(p.join(appDir.path, 'profile_photos'));
-      if (!photosDir.existsSync()) {
-        photosDir.createSync(recursive: true);
-      }
+      final bytes = await picked.readAsBytes();
+      if (!context.mounted) return null;
 
-      final ext = p.extension(picked.path).isNotEmpty ? p.extension(picked.path) : '.jpg';
-      final persistentFileName = 'farmer_profile_${DateTime.now().millisecondsSinceEpoch}$ext';
-      final targetPath = p.join(photosDir.path, persistentFileName);
+      final croppedPath = await Navigator.push<String?>(
+        context,
+        MaterialPageRoute(
+          builder: (ctx) => ImageCropScreen(imageBytes: bytes),
+        ),
+      );
 
-      final savedFile = await File(picked.path).copy(targetPath);
-      return savedFile.path;
+      return croppedPath;
     } catch (e) {
-      debugPrint('Error picking or saving profile image: $e');
+      debugPrint('Error picking or cropping profile image: $e');
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not access image: $e'),
+            backgroundColor: AppColorScheme.error,
+          ),
+        );
+      }
       return null;
     }
   }
@@ -95,7 +102,7 @@ class ProfilePhotoService {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Update your profile photo across FARMSTATS',
+                  'Crop and update your circular avatar across FARMSTATS',
                   style: TextStyle(
                     fontSize: 13,
                     color: Color(0xFF64748B),
@@ -120,12 +127,12 @@ class ProfilePhotoService {
                     ),
                   ),
                   subtitle: const Text(
-                    'Select a photo from your device',
+                    'Select and crop photo with zoom & repositioning',
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                   onTap: () async {
                     Navigator.pop(sheetContext);
-                    final path = await pickAndSaveImage(ImageSource.gallery);
+                    final path = await pickAndCropImage(context, ImageSource.gallery);
                     if (path != null) {
                       onPhotoSelected(path);
                     }
@@ -149,12 +156,12 @@ class ProfilePhotoService {
                     ),
                   ),
                   subtitle: const Text(
-                    'Capture a new photo with camera',
+                    'Capture a new photo and adjust avatar crop',
                     style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                   ),
                   onTap: () async {
                     Navigator.pop(sheetContext);
-                    final path = await pickAndSaveImage(ImageSource.camera);
+                    final path = await pickAndCropImage(context, ImageSource.camera);
                     if (path != null) {
                       onPhotoSelected(path);
                     }
@@ -180,7 +187,7 @@ class ProfilePhotoService {
                       ),
                     ),
                     subtitle: const Text(
-                      'Restore default fallback avatar',
+                      'Restore default initials avatar',
                       style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                     onTap: () {

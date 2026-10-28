@@ -185,6 +185,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.2"
+  country_picker:
+    dependency: "direct main"
+    description:
+      name: country_picker
+      sha256: "8ef721183bd7e0a6017c413693cdc68051daceef5790f5420c3b4378b5c69115"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.28"
   coverage:
     dependency: transitive
     description:
@@ -193,6 +201,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.15.1"
+  crop_your_image:
+    dependency: "direct main"
+    description:
+      name: crop_your_image
+      sha256: "8cd2936d5e2f1a23b330390df0c7e59d685892d63f374196e498905e0896cc2c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
   cross_file:
     dependency: transitive
     description:
@@ -920,6 +936,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.2"
+  phone_numbers_parser:
+    dependency: "direct main"
+    description:
+      name: phone_numbers_parser
+      sha256: "911410b1b6e81a03b7052f2f5ddb838d85d50410295a42551ded7720f4ef4923"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.0.28"
   platform:
     dependency: transitive
     description:
@@ -1253,6 +1277,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  universal_io:
+    dependency: transitive
+    description:
+      name: universal_io
+      sha256: f63cbc48103236abf48e345e07a03ce5757ea86285ed313a6a032596ed9301e2
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.1"
   uuid:
     dependency: "direct main"
     description:

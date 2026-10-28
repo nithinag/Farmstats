@@ -25,6 +25,8 @@ mixin _$FarmProfileModel {
   String get defaultMulberryVariety;
   String get farmType;
   String get photoPath;
+  String get countryCode;
+  String get dialCode;
 
   /// Create a copy of FarmProfileModel
   /// with the given fields replaced by the non-null parameter values.
@@ -60,7 +62,11 @@ mixin _$FarmProfileModel {
             (identical(other.farmType, farmType) ||
                 other.farmType == farmType) &&
             (identical(other.photoPath, photoPath) ||
-                other.photoPath == photoPath));
+                other.photoPath == photoPath) &&
+            (identical(other.countryCode, countryCode) ||
+                other.countryCode == countryCode) &&
+            (identical(other.dialCode, dialCode) ||
+                other.dialCode == dialCode));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -77,11 +83,13 @@ mixin _$FarmProfileModel {
       numRearingHouses,
       defaultMulberryVariety,
       farmType,
-      photoPath);
+      photoPath,
+      countryCode,
+      dialCode);
 
   @override
   String toString() {
-    return 'FarmProfileModel(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety, farmType: $farmType, photoPath: $photoPath)';
+    return 'FarmProfileModel(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety, farmType: $farmType, photoPath: $photoPath, countryCode: $countryCode, dialCode: $dialCode)';
   }
 }
 
@@ -102,7 +110,9 @@ abstract mixin class $FarmProfileModelCopyWith<$Res> {
       int numRearingHouses,
       String defaultMulberryVariety,
       String farmType,
-      String photoPath});
+      String photoPath,
+      String countryCode,
+      String dialCode});
 }
 
 /// @nodoc
@@ -129,6 +139,8 @@ class _$FarmProfileModelCopyWithImpl<$Res>
     Object? defaultMulberryVariety = null,
     Object? farmType = null,
     Object? photoPath = null,
+    Object? countryCode = null,
+    Object? dialCode = null,
   }) {
     return _then(_self.copyWith(
       farmName: null == farmName
@@ -174,6 +186,14 @@ class _$FarmProfileModelCopyWithImpl<$Res>
       photoPath: null == photoPath
           ? _self.photoPath
           : photoPath // ignore: cast_nullable_to_non_nullable
+              as String,
+      countryCode: null == countryCode
+          ? _self.countryCode
+          : countryCode // ignore: cast_nullable_to_non_nullable
+              as String,
+      dialCode: null == dialCode
+          ? _self.dialCode
+          : dialCode // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }
@@ -283,7 +303,9 @@ extension FarmProfileModelPatterns on FarmProfileModel {
             int numRearingHouses,
             String defaultMulberryVariety,
             String farmType,
-            String photoPath)?
+            String photoPath,
+            String countryCode,
+            String dialCode)?
         $default, {
     required TResult orElse(),
   }) {
@@ -301,7 +323,9 @@ extension FarmProfileModelPatterns on FarmProfileModel {
             _that.numRearingHouses,
             _that.defaultMulberryVariety,
             _that.farmType,
-            _that.photoPath);
+            _that.photoPath,
+            _that.countryCode,
+            _that.dialCode);
       case _:
         return orElse();
     }
@@ -333,7 +357,9 @@ extension FarmProfileModelPatterns on FarmProfileModel {
             int numRearingHouses,
             String defaultMulberryVariety,
             String farmType,
-            String photoPath)
+            String photoPath,
+            String countryCode,
+            String dialCode)
         $default,
   ) {
     final _that = this;
@@ -350,7 +376,9 @@ extension FarmProfileModelPatterns on FarmProfileModel {
             _that.numRearingHouses,
             _that.defaultMulberryVariety,
             _that.farmType,
-            _that.photoPath);
+            _that.photoPath,
+            _that.countryCode,
+            _that.dialCode);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -381,7 +409,9 @@ extension FarmProfileModelPatterns on FarmProfileModel {
             int numRearingHouses,
             String defaultMulberryVariety,
             String farmType,
-            String photoPath)?
+            String photoPath,
+            String countryCode,
+            String dialCode)?
         $default,
   ) {
     final _that = this;
@@ -398,7 +428,9 @@ extension FarmProfileModelPatterns on FarmProfileModel {
             _that.numRearingHouses,
             _that.defaultMulberryVariety,
             _that.farmType,
-            _that.photoPath);
+            _that.photoPath,
+            _that.countryCode,
+            _that.dialCode);
       case _:
         return null;
     }
@@ -419,7 +451,9 @@ class _FarmProfileModel implements FarmProfileModel {
       this.numRearingHouses = 0,
       this.defaultMulberryVariety = 'V1',
       this.farmType = 'Sericulture',
-      this.photoPath = ''});
+      this.photoPath = '',
+      this.countryCode = 'IN',
+      this.dialCode = '+91'});
   factory _FarmProfileModel.fromJson(Map<String, dynamic> json) =>
       _$FarmProfileModelFromJson(json);
 
@@ -456,6 +490,12 @@ class _FarmProfileModel implements FarmProfileModel {
   @override
   @JsonKey()
   final String photoPath;
+  @override
+  @JsonKey()
+  final String countryCode;
+  @override
+  @JsonKey()
+  final String dialCode;
 
   /// Create a copy of FarmProfileModel
   /// with the given fields replaced by the non-null parameter values.
@@ -495,7 +535,11 @@ class _FarmProfileModel implements FarmProfileModel {
             (identical(other.farmType, farmType) ||
                 other.farmType == farmType) &&
             (identical(other.photoPath, photoPath) ||
-                other.photoPath == photoPath));
+                other.photoPath == photoPath) &&
+            (identical(other.countryCode, countryCode) ||
+                other.countryCode == countryCode) &&
+            (identical(other.dialCode, dialCode) ||
+                other.dialCode == dialCode));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -512,11 +556,13 @@ class _FarmProfileModel implements FarmProfileModel {
       numRearingHouses,
       defaultMulberryVariety,
       farmType,
-      photoPath);
+      photoPath,
+      countryCode,
+      dialCode);
 
   @override
   String toString() {
-    return 'FarmProfileModel(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety, farmType: $farmType, photoPath: $photoPath)';
+    return 'FarmProfileModel(farmName: $farmName, ownerName: $ownerName, address: $address, phone: $phone, email: $email, gstNumber: $gstNumber, farmArea: $farmArea, numRearingHouses: $numRearingHouses, defaultMulberryVariety: $defaultMulberryVariety, farmType: $farmType, photoPath: $photoPath, countryCode: $countryCode, dialCode: $dialCode)';
   }
 }
 
@@ -539,7 +585,9 @@ abstract mixin class _$FarmProfileModelCopyWith<$Res>
       int numRearingHouses,
       String defaultMulberryVariety,
       String farmType,
-      String photoPath});
+      String photoPath,
+      String countryCode,
+      String dialCode});
 }
 
 /// @nodoc
@@ -566,6 +614,8 @@ class __$FarmProfileModelCopyWithImpl<$Res>
     Object? defaultMulberryVariety = null,
     Object? farmType = null,
     Object? photoPath = null,
+    Object? countryCode = null,
+    Object? dialCode = null,
   }) {
     return _then(_FarmProfileModel(
       farmName: null == farmName
@@ -611,6 +661,14 @@ class __$FarmProfileModelCopyWithImpl<$Res>
       photoPath: null == photoPath
           ? _self.photoPath
           : photoPath // ignore: cast_nullable_to_non_nullable
+              as String,
+      countryCode: null == countryCode
+          ? _self.countryCode
+          : countryCode // ignore: cast_nullable_to_non_nullable
+              as String,
+      dialCode: null == dialCode
+          ? _self.dialCode
+          : dialCode // ignore: cast_nullable_to_non_nullable
               as String,
     ));
   }

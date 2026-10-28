@@ -33,8 +33,13 @@ class SettingsRepositoryImpl implements ISettingsRepository {
       if (!SettingsValidatorService.isValidEmail(profile.email)) {
         return const Left(Failure('Invalid email address format'));
       }
-      if (!SettingsValidatorService.isValidPhone(profile.phone)) {
-        return const Left(Failure('Invalid phone number format'));
+      final phoneError = SettingsValidatorService.validateCountryPhone(
+        profile.phone,
+        countryCode: profile.countryCode,
+        dialCode: profile.dialCode,
+      );
+      if (phoneError != null) {
+        return Left(Failure(phoneError));
       }
 
       final model = SettingsMapper.toProfileModel(profile);

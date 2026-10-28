@@ -35,6 +35,9 @@ dependencies:
   printing: ^5.14.3
   flutter_dynamic_icon_plus: ^1.4.1
   image_picker: ^1.2.4
+  crop_your_image: ^2.0.1
+  country_picker: ^2.0.28
+  phone_numbers_parser: ^9.0.28
 
 dev_dependencies:
   flutter_test:
