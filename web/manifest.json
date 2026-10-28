@@ -1,6 +1,6 @@
 {
-    "name": "farmstats",
-    "short_name": "farmstats",
+    "name": "Farmstats",
+    "short_name": "Farmstats",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
