@@ -36,6 +36,7 @@ import '../features/batches/presentation/screens/batch_form_screen.dart';
 import '../features/batches/presentation/screens/batch_details_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/settings/presentation/screens/farm_profile_screen.dart';
+import '../features/settings/presentation/screens/edit_farm_profile_screen.dart';
 import '../features/settings/presentation/screens/preferences_screen.dart';
 import '../features/settings/presentation/screens/language_selection_screen.dart';
 import '../features/settings/presentation/screens/about_screen.dart';
@@ -296,6 +297,12 @@ final GoRouter appRouter = GoRouter(
                 GoRoute(
                   path: 'profile',
                   builder: (context, state) => const FarmProfileScreen(),
+                  routes: [
+                    GoRoute(
+                      path: 'edit',
+                      builder: (context, state) => const EditFarmProfileScreen(),
+                    ),
+                  ],
                 ),
                 GoRoute(
                   path: 'preferences',
