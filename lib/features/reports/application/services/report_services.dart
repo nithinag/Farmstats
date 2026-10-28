@@ -55,15 +55,17 @@ class ExportService {
     required List<Expense> expenses,
     required List<Income> incomes,
   }) async {
-    // 1. Request Permission
-    var status = await Permission.storage.status;
-    if (!status.isGranted) {
-      status = await Permission.storage.request();
+    // 1. Request Permission if on Android
+    if (Platform.isAndroid) {
+      var status = await Permission.storage.status;
       if (!status.isGranted) {
-        // For Android 11+ fallback to manage external storage
-        status = await Permission.manageExternalStorage.request();
+        status = await Permission.storage.request();
         if (!status.isGranted) {
-          throw Exception("Storage permission is required to save the CSV.");
+          // For Android 11+ fallback to manage external storage
+          status = await Permission.manageExternalStorage.request();
+          if (!status.isGranted) {
+            throw Exception("Storage permission is required to save the CSV.");
+          }
         }
       }
     }
