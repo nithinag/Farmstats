@@ -40,6 +40,8 @@ import '../features/settings/presentation/screens/edit_farm_profile_screen.dart'
 import '../features/settings/presentation/screens/preferences_screen.dart';
 import '../features/settings/presentation/screens/language_selection_screen.dart';
 import '../features/settings/presentation/screens/about_screen.dart';
+import '../features/settings/presentation/screens/farm_reminders_screen.dart';
+import '../features/settings/presentation/screens/security_app_screen.dart';
 import '../features/onboarding/presentation/screens/welcome_screen.dart';
 import '../shared/widgets/navigation_shell.dart';
 
@@ -319,6 +321,14 @@ final GoRouter appRouter = GoRouter(
                 GoRoute(
                   path: 'backup',
                   builder: (context, state) => const BackupDashboardScreen(),
+                ),
+                GoRoute(
+                  path: 'reminders',
+                  builder: (context, state) => const FarmRemindersScreen(),
+                ),
+                GoRoute(
+                  path: 'security-app',
+                  builder: (context, state) => const SecurityAppScreen(),
                 ),
               ],
             ),

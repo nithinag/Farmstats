@@ -6,7 +6,6 @@ import '../../../../core/theme/color_scheme.dart';
 import '../../../../shared/widgets/farmer_avatar.dart';
 import '../application/providers/settings_notifier.dart';
 import '../application/providers/settings_state.dart';
-import '../application/providers/language_provider.dart';
 import '../domain/entities/settings_entities.dart';
 import '../../../../data/providers/database_provider.dart';
 import '../../expenses/application/providers/expense_notifier.dart';
@@ -24,7 +23,6 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: AppColorScheme.error),
@@ -44,7 +42,6 @@ class SettingsScreen extends ConsumerWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColorScheme.error,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
                 Navigator.pop(context);
@@ -92,165 +89,9 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _showThemeSelector(BuildContext context, WidgetRef ref, AppPreferences prefs) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const Text(
-                  'Appearance Mode',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F1E36),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildThemeOption(
-                  context,
-                  title: 'System Default',
-                  subtitle: 'Match device system settings',
-                  selected: prefs.themeMode == ThemeModePreference.system,
-                  onTap: () {
-                    ref.read(settingsNotifierProvider.notifier).savePreferences(
-                          prefs.copyWith(themeMode: ThemeModePreference.system),
-                        );
-                    Navigator.pop(context);
-                  },
-                ),
-                _buildThemeOption(
-                  context,
-                  title: 'Light Theme',
-                  subtitle: 'Fresh warm-white agricultural palette',
-                  selected: prefs.themeMode == ThemeModePreference.light,
-                  onTap: () {
-                    ref.read(settingsNotifierProvider.notifier).savePreferences(
-                          prefs.copyWith(themeMode: ThemeModePreference.light),
-                        );
-                    Navigator.pop(context);
-                  },
-                ),
-                _buildThemeOption(
-                  context,
-                  title: 'Dark Theme',
-                  subtitle: 'Low-light dark mode for night work',
-                  selected: prefs.themeMode == ThemeModePreference.dark,
-                  onTap: () {
-                    ref.read(settingsNotifierProvider.notifier).savePreferences(
-                          prefs.copyWith(themeMode: ThemeModePreference.dark),
-                        );
-                    Navigator.pop(context);
-                  },
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildThemeOption(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-          color: selected ? const Color(0xFF165B33) : const Color(0xFF0F1E36),
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
-      ),
-      trailing: selected
-          ? const Icon(Icons.check_circle_rounded, color: Color(0xFF165B33))
-          : const Icon(Icons.circle_outlined, color: Color(0xFFCBD5E1)),
-      onTap: onTap,
-    );
-  }
-
-  void _showPrivacyDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Row(
-            children: [
-              Icon(Icons.security_rounded, color: Color(0xFF165B33)),
-              SizedBox(width: 10),
-              Text('Privacy & Offline Data', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-            ],
-          ),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '100% Offline-First Architecture',
-                style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F1E36)),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'FARMSTATS stores all your sericulture farm data, worker logs, expenses, batches, and records locally on your device in a secure SQLite database.\n\nNo accounts, no external tracking, and no cloud uploads without your explicit export.',
-                style: TextStyle(fontSize: 13.5, color: Color(0xFF475569), height: 1.4),
-              ),
-            ],
-          ),
-          actions: [
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF165B33),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Understood'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(settingsNotifierProvider);
-    final languageCode = ref.watch(languageProvider);
-
-    final currentLang = kSupportedLanguages.firstWhere(
-      (l) => l.code == languageCode,
-      orElse: () => kSupportedLanguages[1],
-    );
 
     final profile = (state is SettingsStateData)
         ? state.profile
@@ -260,18 +101,8 @@ class SettingsScreen extends ConsumerWidget {
             address: 'Chittoor, Andhra Pradesh',
           );
 
-    final prefs = (state is SettingsStateData)
-        ? state.preferences
-        : const AppPreferences();
-
     final displayName = profile.ownerName.isNotEmpty ? profile.ownerName : 'Farmer';
     final displayFarmName = profile.farmName.isNotEmpty ? profile.farmName : 'My Sericulture Farm';
-
-    final themeLabel = switch (prefs.themeMode) {
-      ThemeModePreference.system => 'System',
-      ThemeModePreference.light => 'Light',
-      ThemeModePreference.dark => 'Dark',
-    };
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F8),
@@ -280,7 +111,7 @@ class SettingsScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           children: [
-            // Screen Title: Settings
+            // 1. Settings Page Title
             const Padding(
               padding: EdgeInsets.only(left: 4.0, top: 4.0, bottom: 20.0),
               child: Text(
@@ -294,9 +125,7 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
 
-            // 1. SECTION: FARM PROFILE
-            _buildSectionHeader('FARM PROFILE'),
-            const SizedBox(height: 10),
+            // 2. Green Farmer Identity Card
             Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(20),
@@ -329,224 +158,150 @@ class SettingsScreen extends ConsumerWidget {
                         painter: _ProfileCardLeafPainter(),
                       ),
                     ),
-                    // Tappable Card Content
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => context.push('/settings/profile'),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    // Farmer Identity Content
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 58,
-                                    height: 58,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: Colors.white, width: 2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.12),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
+                              Container(
+                                width: 58,
+                                height: 58,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.12),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
                                     ),
-                                    child: FarmerAvatar(
-                                      photoPath: profile.photoPath,
-                                      name: displayName,
-                                      size: 54,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          displayName,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 17.5,
-                                            fontWeight: FontWeight.w700,
-                                            letterSpacing: -0.2,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 3),
-                                        Text(
-                                          displayFarmName,
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.85),
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    size: 22,
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                child: FarmerAvatar(
+                                  photoPath: profile.photoPath,
+                                  name: displayName,
+                                  size: 54,
+                                ),
                               ),
-                              const SizedBox(height: 18),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.eco_rounded,
-                                    size: 18,
-                                    color: Color(0xFF7CE49F),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Sericulture Farmer',
-                                    style: TextStyle(
-                                      color: const Color(0xFFB4EAC4).withValues(alpha: 0.95),
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w500,
-                                      letterSpacing: 0.1,
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      displayName,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 17.5,
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -0.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      displayFarmName,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.85),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.eco_rounded,
+                                size: 18,
+                                color: Color(0xFF7CE49F),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Sericulture Farmer',
+                                style: TextStyle(
+                                  color: const Color(0xFFB4EAC4).withValues(alpha: 0.95),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w500,
+                                  letterSpacing: 0.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
 
-            // 2. SECTION: PREFERENCES
-            _buildSectionHeader('PREFERENCES'),
-            const SizedBox(height: 10),
-            _buildGroupedCard(
-              children: [
-                _buildRowItem(
-                  icon: Icons.language_rounded,
-                  title: 'Language',
-                  value: currentLang.englishName,
-                  onTap: () => context.push('/settings/language'),
-                ),
-                _buildDivider(),
-                _buildRowItem(
-                  icon: Icons.currency_rupee,
-                  title: 'Currency',
-                  value: 'INR (₹)',
-                  onTap: () => context.push('/settings/preferences'),
-                ),
-                _buildDivider(),
-                _buildRowItem(
-                  icon: Icons.straighten_outlined,
-                  title: 'Units',
-                  value: 'kg, °C, Acres',
-                  onTap: () => context.push('/settings/preferences'),
-                ),
-              ],
+            // 3. Card 1 — Farm Profile
+            _buildNavigationCard(
+              icon: Icons.badge_outlined,
+              title: 'Farm Profile',
+              subtitle: 'Manage farmer details and farm configuration',
+              onTap: () => context.push('/settings/profile'),
             ),
-            const SizedBox(height: 24),
 
-            // 3. SECTION: FARM REMINDERS
-            _buildSectionHeader('FARM REMINDERS'),
-            const SizedBox(height: 10),
-            _buildGroupedCard(
-              children: [
-                _buildSwitchRowItem(
-                  icon: Icons.notifications_active_outlined,
-                  title: 'Farm Notifications',
-                  subtitle: 'Feeding, cleaning & inventory alerts',
-                  value: prefs.enableNotifications,
-                  onChanged: (v) {
-                    ref.read(settingsNotifierProvider.notifier).savePreferences(
-                          prefs.copyWith(enableNotifications: v),
-                        );
-                  },
-                ),
-                _buildDivider(),
-                _buildRowItem(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Active Farm Alerts',
-                  value: 'View All',
-                  onTap: () => context.push('/notifications'),
-                ),
-              ],
+            // 4. Card 2 — Preferences
+            _buildNavigationCard(
+              icon: Icons.tune_rounded,
+              title: 'Preferences',
+              subtitle: 'Language, currency, units and appearance',
+              onTap: () => context.push('/settings/preferences'),
             ),
-            const SizedBox(height: 24),
 
-            // 4. SECTION: SECURITY & APP
-            _buildSectionHeader('SECURITY & APP'),
-            const SizedBox(height: 10),
-            _buildGroupedCard(
-              children: [
-                _buildRowItem(
-                  icon: Icons.palette_outlined,
-                  title: 'Appearance',
-                  value: themeLabel,
-                  onTap: () => _showThemeSelector(context, ref, prefs),
-                ),
-                _buildDivider(),
-                _buildRowItem(
-                  icon: Icons.security_outlined,
-                  title: 'Privacy & Security',
-                  value: '100% Offline',
-                  onTap: () => _showPrivacyDialog(context),
-                ),
-                _buildDivider(),
-                _buildRowItem(
-                  icon: Icons.info_outline_rounded,
-                  title: 'About FARMSTATS',
-                  onTap: () => context.push('/settings/about'),
-                ),
-              ],
+            // 5. Card 3 — Data & Backup
+            _buildNavigationCard(
+              icon: Icons.cloud_sync_outlined,
+              title: 'Data & Backup',
+              subtitle: 'Backup, restore and export farm records',
+              onTap: () => context.push('/settings/backup'),
             ),
-            const SizedBox(height: 24),
 
-            // 5. SECTION: DATA & BACKUP
-            _buildSectionHeader('DATA & BACKUP'),
-            const SizedBox(height: 10),
-            _buildGroupedCard(
-              children: [
-                _buildRowItem(
-                  icon: Icons.cloud_upload_outlined,
-                  title: 'Backup & Restore',
-                  value: 'JSON',
-                  onTap: () => context.push('/settings/backup'),
-                ),
-                _buildDivider(),
-                _buildRowItem(
-                  icon: Icons.download_outlined,
-                  title: 'Export Records (CSV)',
-                  onTap: () => context.push('/settings/backup'),
-                ),
-              ],
+            // 6. Card 4 — Farm Reminders
+            _buildNavigationCard(
+              icon: Icons.notifications_none_rounded,
+              title: 'Farm Reminders',
+              subtitle: 'Feeding, stock and pending-wage notifications',
+              onTap: () => context.push('/settings/reminders'),
             ),
-            const SizedBox(height: 16),
 
-            // 6. RESET ALL DATA (Pale red card)
+            // 7. Card 5 — Security & App
+            _buildNavigationCard(
+              icon: Icons.shield_outlined,
+              title: 'Security & App',
+              subtitle: 'App lock, About FARMSTATS and available support options',
+              onTap: () => context.push('/settings/security-app'),
+            ),
+
+            const SizedBox(height: 6),
+
+            // 8. Separate Destructive Reset All Data Action
             Container(
+              margin: const EdgeInsets.only(bottom: 28),
               decoration: BoxDecoration(
                 color: const Color(0xFFFDF2F2),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFFEE2E2), width: 1),
               ),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () => _showResetConfirmation(context, ref),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(18),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     child: Row(
@@ -588,34 +343,26 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
 
-            // Ample bottom padding so content scrolls above navigation bar
-            const SizedBox(height: 32),
+            // Ample bottom padding so content scrolls freely above bottom navigation
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4.0),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF6B7C8E),
-          letterSpacing: 0.8,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGroupedCard({required List<Widget> children}) {
+  Widget _buildNavigationCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF1E293B).withValues(alpha: 0.035),
@@ -624,139 +371,63 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          children: children,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDivider() {
-    return const Divider(
-      height: 1,
-      indent: 70,
-      endIndent: 16,
-      color: Color(0xFFF1F5F9),
-    );
-  }
-
-  Widget _buildRowItem({
-    required IconData icon,
-    required String title,
-    String? value,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE8F5EC),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: Icon(icon, size: 20, color: const Color(0xFF165B33)),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F1E36),
-                  ),
-                ),
-              ),
-              if (value != null) ...[
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              const Icon(Icons.chevron_right, size: 18, color: Color(0xFF94A3B8)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSwitchRowItem({
-    required IconData icon,
-    required String title,
-    String? subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE8F5EC),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: Icon(icon, size: 20, color: const Color(0xFF165B33)),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            child: Row(
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF0F1E36),
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE8F5EC),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(icon, size: 22, color: const Color(0xFF165B33)),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF0F1E36),
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF64748B),
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, size: 20, color: Color(0xFF94A3B8)),
               ],
             ),
           ),
-          Switch.adaptive(
-            value: value,
-            activeTrackColor: const Color(0xFF165B33),
-            activeThumbColor: Colors.white,
-            onChanged: onChanged,
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Botanical mulberry leaf illustration painted in the bottom-right of the profile card.
+/// Botanical mulberry leaf illustration painted in the bottom-right of the identity card.
 class _ProfileCardLeafPainter extends CustomPainter {
   const _ProfileCardLeafPainter();
 

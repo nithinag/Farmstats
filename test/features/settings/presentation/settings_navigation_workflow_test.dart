@@ -69,25 +69,36 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Check Settings shows FARM PROFILE section with green card details
+      // Check Settings shows Page Title & Green Identity Card details
       expect(find.text('Settings'), findsOneWidget);
-      expect(find.text('FARM PROFILE'), findsOneWidget);
       expect(find.text('Nithin Nagabushanam'), findsOneWidget);
       expect(find.text('My Sericulture Farm'), findsOneWidget);
       expect(find.text('Sericulture Farmer'), findsOneWidget);
 
-      // Check PREFERENCES, FARM REMINDERS, SECURITY & APP, DATA & BACKUP and Reset All Data sections exist
-      expect(find.text('PREFERENCES'), findsOneWidget);
-      expect(find.text('FARM REMINDERS'), findsOneWidget);
-      expect(find.text('SECURITY & APP'), findsOneWidget);
-      expect(find.text('DATA & BACKUP'), findsOneWidget);
+      // Check all 5 white navigation cards in order
+      expect(find.text('Farm Profile'), findsOneWidget);
+      expect(find.text('Manage farmer details and farm configuration'), findsOneWidget);
+
+      expect(find.text('Preferences'), findsOneWidget);
+      expect(find.text('Language, currency, units and appearance'), findsOneWidget);
+
+      expect(find.text('Data & Backup'), findsOneWidget);
+      expect(find.text('Backup, restore and export farm records'), findsOneWidget);
+
+      expect(find.text('Farm Reminders'), findsOneWidget);
+      expect(find.text('Feeding, stock and pending-wage notifications'), findsOneWidget);
+
+      expect(find.text('Security & App'), findsOneWidget);
+      expect(find.text('App lock, About FARMSTATS and available support options'), findsOneWidget);
+
+      // Check Reset All Data card
       expect(find.text('Reset All Data'), findsOneWidget);
 
       // Verify no inline edit controls beside fields
       expect(find.text('Edit Farm Details'), findsNothing);
 
-      // Tap on Farm Profile card
-      await tester.tap(find.text('Nithin Nagabushanam'));
+      // Tap on Farm Profile white navigation card
+      await tester.tap(find.text('Farm Profile'));
       await tester.pumpAndSettle();
 
       // Should now be on Farm Profile screen
