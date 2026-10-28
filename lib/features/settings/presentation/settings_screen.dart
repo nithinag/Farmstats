@@ -24,6 +24,7 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (context) {
         return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: AppColorScheme.error),
@@ -43,6 +44,7 @@ class SettingsScreen extends ConsumerWidget {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColorScheme.error,
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () async {
                 Navigator.pop(context);
@@ -90,6 +92,156 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  void _showThemeSelector(BuildContext context, WidgetRef ref, AppPreferences prefs) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Appearance Mode',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF0F1E36),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildThemeOption(
+                  context,
+                  title: 'System Default',
+                  subtitle: 'Match device system settings',
+                  selected: prefs.themeMode == ThemeModePreference.system,
+                  onTap: () {
+                    ref.read(settingsNotifierProvider.notifier).savePreferences(
+                          prefs.copyWith(themeMode: ThemeModePreference.system),
+                        );
+                    Navigator.pop(context);
+                  },
+                ),
+                _buildThemeOption(
+                  context,
+                  title: 'Light Theme',
+                  subtitle: 'Fresh warm-white agricultural palette',
+                  selected: prefs.themeMode == ThemeModePreference.light,
+                  onTap: () {
+                    ref.read(settingsNotifierProvider.notifier).savePreferences(
+                          prefs.copyWith(themeMode: ThemeModePreference.light),
+                        );
+                    Navigator.pop(context);
+                  },
+                ),
+                _buildThemeOption(
+                  context,
+                  title: 'Dark Theme',
+                  subtitle: 'Low-light dark mode for night work',
+                  selected: prefs.themeMode == ThemeModePreference.dark,
+                  onTap: () {
+                    ref.read(settingsNotifierProvider.notifier).savePreferences(
+                          prefs.copyWith(themeMode: ThemeModePreference.dark),
+                        );
+                    Navigator.pop(context);
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildThemeOption(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(
+        title,
+        style: TextStyle(
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+          color: selected ? const Color(0xFF165B33) : const Color(0xFF0F1E36),
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B)),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle_rounded, color: Color(0xFF165B33))
+          : const Icon(Icons.circle_outlined, color: Color(0xFFCBD5E1)),
+      onTap: onTap,
+    );
+  }
+
+  void _showPrivacyDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.security_rounded, color: Color(0xFF165B33)),
+              SizedBox(width: 10),
+              Text('Privacy & Offline Data', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '100% Offline-First Architecture',
+                style: TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F1E36)),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'FARMSTATS stores all your sericulture farm data, worker logs, expenses, batches, and records locally on your device in a secure SQLite database.\n\nNo accounts, no external tracking, and no cloud uploads without your explicit export.',
+                style: TextStyle(fontSize: 13.5, color: Color(0xFF475569), height: 1.4),
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF165B33),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Understood'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(settingsNotifierProvider);
@@ -108,8 +260,18 @@ class SettingsScreen extends ConsumerWidget {
             address: 'Chittoor, Andhra Pradesh',
           );
 
+    final prefs = (state is SettingsStateData)
+        ? state.preferences
+        : const AppPreferences();
+
     final displayName = profile.ownerName.isNotEmpty ? profile.ownerName : 'Farmer';
     final displayFarmName = profile.farmName.isNotEmpty ? profile.farmName : 'My Sericulture Farm';
+
+    final themeLabel = switch (prefs.themeMode) {
+      ThemeModePreference.system => 'System',
+      ThemeModePreference.light => 'Light',
+      ThemeModePreference.dark => 'Dark',
+    };
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9F8),
@@ -271,111 +433,109 @@ class SettingsScreen extends ConsumerWidget {
             // 2. SECTION: PREFERENCES
             _buildSectionHeader('PREFERENCES'),
             const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1E293B).withValues(alpha: 0.035),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Column(
-                  children: [
-                    _buildRowItem(
-                      icon: Icons.language_rounded,
-                      title: 'Language',
-                      value: currentLang.englishName,
-                      onTap: () => context.push('/settings/language'),
-                    ),
-                    const Divider(
-                      height: 1,
-                      indent: 70,
-                      endIndent: 16,
-                      color: Color(0xFFF1F5F9),
-                    ),
-                    _buildRowItem(
-                      icon: Icons.currency_rupee,
-                      title: 'Currency',
-                      value: 'INR (₹)',
-                      onTap: () => context.push('/settings/preferences'),
-                    ),
-                    const Divider(
-                      height: 1,
-                      indent: 70,
-                      endIndent: 16,
-                      color: Color(0xFFF1F5F9),
-                    ),
-                    _buildRowItem(
-                      icon: Icons.straighten_outlined,
-                      title: 'Units',
-                      value: 'kg, °C, Acres',
-                      onTap: () => context.push('/settings/preferences'),
-                    ),
-                  ],
+            _buildGroupedCard(
+              children: [
+                _buildRowItem(
+                  icon: Icons.language_rounded,
+                  title: 'Language',
+                  value: currentLang.englishName,
+                  onTap: () => context.push('/settings/language'),
                 ),
-              ),
+                _buildDivider(),
+                _buildRowItem(
+                  icon: Icons.currency_rupee,
+                  title: 'Currency',
+                  value: 'INR (₹)',
+                  onTap: () => context.push('/settings/preferences'),
+                ),
+                _buildDivider(),
+                _buildRowItem(
+                  icon: Icons.straighten_outlined,
+                  title: 'Units',
+                  value: 'kg, °C, Acres',
+                  onTap: () => context.push('/settings/preferences'),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
 
-            // 3. SECTION: APP & DATA
-            _buildSectionHeader('APP & DATA'),
+            // 3. SECTION: FARM REMINDERS
+            _buildSectionHeader('FARM REMINDERS'),
             const SizedBox(height: 10),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1E293B).withValues(alpha: 0.035),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Column(
-                  children: [
-                    _buildRowItem(
-                      icon: Icons.cloud_upload_outlined,
-                      title: 'Backup & Restore',
-                      onTap: () => context.push('/settings/backup'),
-                    ),
-                    const Divider(
-                      height: 1,
-                      indent: 70,
-                      endIndent: 16,
-                      color: Color(0xFFF1F5F9),
-                    ),
-                    _buildRowItem(
-                      icon: Icons.download_outlined,
-                      title: 'Export Records (CSV)',
-                      onTap: () => context.push('/settings/backup'),
-                    ),
-                    const Divider(
-                      height: 1,
-                      indent: 70,
-                      endIndent: 16,
-                      color: Color(0xFFF1F5F9),
-                    ),
-                    _buildRowItem(
-                      icon: Icons.info_outline_rounded,
-                      title: 'About FARMSTATS',
-                      onTap: () => context.push('/settings/about'),
-                    ),
-                  ],
+            _buildGroupedCard(
+              children: [
+                _buildSwitchRowItem(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Farm Notifications',
+                  subtitle: 'Feeding, cleaning & inventory alerts',
+                  value: prefs.enableNotifications,
+                  onChanged: (v) {
+                    ref.read(settingsNotifierProvider.notifier).savePreferences(
+                          prefs.copyWith(enableNotifications: v),
+                        );
+                  },
                 ),
-              ),
+                _buildDivider(),
+                _buildRowItem(
+                  icon: Icons.notifications_none_rounded,
+                  title: 'Active Farm Alerts',
+                  value: 'View All',
+                  onTap: () => context.push('/notifications'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // 4. SECTION: SECURITY & APP
+            _buildSectionHeader('SECURITY & APP'),
+            const SizedBox(height: 10),
+            _buildGroupedCard(
+              children: [
+                _buildRowItem(
+                  icon: Icons.palette_outlined,
+                  title: 'Appearance',
+                  value: themeLabel,
+                  onTap: () => _showThemeSelector(context, ref, prefs),
+                ),
+                _buildDivider(),
+                _buildRowItem(
+                  icon: Icons.security_outlined,
+                  title: 'Privacy & Security',
+                  value: '100% Offline',
+                  onTap: () => _showPrivacyDialog(context),
+                ),
+                _buildDivider(),
+                _buildRowItem(
+                  icon: Icons.info_outline_rounded,
+                  title: 'About FARMSTATS',
+                  onTap: () => context.push('/settings/about'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+
+            // 5. SECTION: DATA & BACKUP
+            _buildSectionHeader('DATA & BACKUP'),
+            const SizedBox(height: 10),
+            _buildGroupedCard(
+              children: [
+                _buildRowItem(
+                  icon: Icons.cloud_upload_outlined,
+                  title: 'Backup & Restore',
+                  value: 'JSON',
+                  onTap: () => context.push('/settings/backup'),
+                ),
+                _buildDivider(),
+                _buildRowItem(
+                  icon: Icons.download_outlined,
+                  title: 'Export Records (CSV)',
+                  onTap: () => context.push('/settings/backup'),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
-            // 4. RESET ALL DATA (Pale red card)
+            // 6. RESET ALL DATA (Pale red card)
             Container(
               decoration: BoxDecoration(
                 color: const Color(0xFFFDF2F2),
@@ -451,6 +611,37 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildGroupedCard({required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1E293B).withValues(alpha: 0.035),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          children: children,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return const Divider(
+      height: 1,
+      indent: 70,
+      endIndent: 16,
+      color: Color(0xFFF1F5F9),
+    );
+  }
+
   Widget _buildRowItem({
     required IconData icon,
     required String title,
@@ -501,6 +692,65 @@ class SettingsScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSwitchRowItem({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE8F5EC),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 20, color: const Color(0xFF165B33)),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F1E36),
+                  ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeTrackColor: const Color(0xFF165B33),
+            activeThumbColor: Colors.white,
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
   }

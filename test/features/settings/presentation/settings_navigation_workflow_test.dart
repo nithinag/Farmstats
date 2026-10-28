@@ -76,9 +76,11 @@ void main() {
       expect(find.text('My Sericulture Farm'), findsOneWidget);
       expect(find.text('Sericulture Farmer'), findsOneWidget);
 
-      // Check PREFERENCES, APP & DATA and Reset All Data sections exist
+      // Check PREFERENCES, FARM REMINDERS, SECURITY & APP, DATA & BACKUP and Reset All Data sections exist
       expect(find.text('PREFERENCES'), findsOneWidget);
-      expect(find.text('APP & DATA'), findsOneWidget);
+      expect(find.text('FARM REMINDERS'), findsOneWidget);
+      expect(find.text('SECURITY & APP'), findsOneWidget);
+      expect(find.text('DATA & BACKUP'), findsOneWidget);
       expect(find.text('Reset All Data'), findsOneWidget);
 
       // Verify no inline edit controls beside fields
