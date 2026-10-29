@@ -6,6 +6,7 @@ import 'package:farmstats/features/labour/presentation/screens/worker_list_scree
 import 'package:farmstats/features/labour/presentation/screens/worker_form_screen.dart';
 import 'package:farmstats/features/labour/presentation/screens/worker_details_screen.dart';
 import 'package:farmstats/features/labour/presentation/screens/attendance_screen.dart';
+import 'package:farmstats/features/labour/presentation/widgets/labour_components.dart';
 import 'package:farmstats/features/labour/domain/entities/labour_entities.dart';
 import 'package:farmstats/features/labour/application/providers/labour_notifier.dart';
 import 'package:farmstats/features/labour/application/providers/labour_state.dart';
@@ -182,7 +183,11 @@ void main() {
       await tester.tap(find.text('Silkworm Feeding & Cleaning').first);
       await tester.pumpAndSettle();
 
+      expect(find.text('Wage Log Options'), findsOneWidget);
       expect(find.text('Edit Wage Log'), findsOneWidget);
+      // Since Silkworm Feeding & Cleaning is Paid, it MUST show Mark as Pending and NEVER Mark as Paid
+      expect(find.text('Mark as Pending'), findsOneWidget);
+      expect(find.text('Mark as Paid'), findsNothing);
       expect(find.text('Delete Wage Log'), findsOneWidget);
 
       // Tap Delete Wage Log to open confirmation dialog
@@ -191,10 +196,35 @@ void main() {
 
       expect(find.text('Delete Wage Log?'), findsOneWidget);
       expect(find.textContaining('permanently delete this wage log'), findsOneWidget);
+      expect(find.text('Worker'), findsOneWidget);
+      expect(find.text('Work Type'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
 
       // Cancel deletion
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Now tap on Mulberry Field Work (Pending) to verify contextual actions
+      await tester.tap(find.text('Mulberry Field Work').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wage Log Options'), findsOneWidget);
+      expect(find.text('Edit Wage Log'), findsOneWidget);
+      // Since Mulberry Field Work is Pending, it MUST show Mark as Paid and NEVER Mark as Pending
+      expect(find.text('Mark as Paid'), findsOneWidget);
+      expect(find.text('Mark as Pending'), findsNothing);
+      expect(find.text('Delete Wage Log'), findsOneWidget);
+
+      // Tap Mark as Paid to open confirmation dialog
+      await tester.tap(find.text('Mark as Paid'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as Paid?'), findsOneWidget);
+      expect(find.textContaining('This will mark the wage as paid.'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+
+      // Cancel Mark as Paid dialog
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
@@ -367,6 +397,128 @@ void main() {
       // Tap Overdue status chip
       await tester.tap(find.text('Overdue'));
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('Wage Log Options Confirmation Dialogs render correct labels and respond to confirmation', (tester) async {
+      bool paidConfirmed = false;
+      bool pendingConfirmed = false;
+      bool deleteConfirmed = false;
+
+      // Test ConfirmMarkPaidDialog
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () {
+                  ConfirmMarkPaidDialog.show(
+                    ctx,
+                    workerName: 'Nithin',
+                    amount: 750,
+                    formattedDate: '29 Oct 2026',
+                    shiftName: 'Morning Shift',
+                    onConfirm: () => paidConfirmed = true,
+                  );
+                },
+                child: const Text('Open Paid Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Paid Dialog'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as Paid?'), findsOneWidget);
+      expect(find.text('This will mark the wage as paid.'), findsOneWidget);
+      expect(find.text('Nithin'), findsOneWidget);
+      expect(find.text('29 Oct 2026'), findsOneWidget);
+      expect(find.text('Morning Shift'), findsOneWidget);
+      expect(find.text('₹750'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Mark as Paid'));
+      await tester.pumpAndSettle();
+      expect(paidConfirmed, isTrue);
+
+      // Test ConfirmMarkPendingDialog
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () {
+                  ConfirmMarkPendingDialog.show(
+                    ctx,
+                    workerName: 'Samantha',
+                    amount: 600,
+                    formattedDate: '30 Oct 2026',
+                    shiftName: 'Day Shift',
+                    onConfirm: () => pendingConfirmed = true,
+                  );
+                },
+                child: const Text('Open Pending Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Pending Dialog'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mark as Pending?'), findsOneWidget);
+      expect(find.text('This will revert the payment to pending dues.'), findsOneWidget);
+      expect(find.text('Samantha'), findsOneWidget);
+      expect(find.text('30 Oct 2026'), findsOneWidget);
+      expect(find.text('Day Shift'), findsOneWidget);
+      expect(find.text('₹600'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Mark as Pending'));
+      await tester.pumpAndSettle();
+      expect(pendingConfirmed, isTrue);
+
+      // Test DeleteWageLogDialog
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () {
+                  DeleteWageLogDialog.show(
+                    ctx,
+                    taskTitle: 'Silkworm Feeding',
+                    workerName: 'Nithin',
+                    amount: 500,
+                    formattedDate: '28 Oct 2026',
+                    shiftName: 'Early Morning Shift',
+                    onConfirm: () => deleteConfirmed = true,
+                  );
+                },
+                child: const Text('Open Delete Dialog'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Delete Dialog'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Wage Log?'), findsOneWidget);
+      expect(find.textContaining('This will permanently delete this wage log.'), findsOneWidget);
+      expect(find.text('Silkworm Feeding'), findsOneWidget);
+      expect(find.text('Nithin'), findsOneWidget);
+      expect(find.text('28 Oct 2026'), findsOneWidget);
+      expect(find.text('Early Morning Shift'), findsOneWidget);
+      expect(find.text('₹500'), findsOneWidget);
+
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Delete'));
+      await tester.pumpAndSettle();
+      expect(deleteConfirmed, isTrue);
     });
   });
 }

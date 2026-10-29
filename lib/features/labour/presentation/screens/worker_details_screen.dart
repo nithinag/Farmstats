@@ -50,14 +50,31 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
               .replaceAll('(Overdue)', '(Paid)')
           : expense.description.replaceAll('(Paid)', '(Pending)');
 
-      await (db.update(db.expensesTable)..where((t) => t.id.equals(expense.id))).write(
-        ExpensesTableCompanion(
-          paymentMethod: Value(newPaymentMethod),
-          description: Value(updatedDesc),
-        ),
-      );
+      await db.transaction(() async {
+        await (db.update(db.expensesTable)..where((t) => t.id.equals(expense.id))).write(
+          ExpensesTableCompanion(
+            paymentMethod: Value(newPaymentMethod),
+            description: Value(updatedDesc),
+          ),
+        );
+
+        final matchingWages = await (db.select(db.wagesTable)
+          ..where((t) => t.netPay.equals(expense.amount) &
+            t.paymentDate.year.equals(expense.date.year) &
+            t.paymentDate.month.equals(expense.date.month) &
+            t.paymentDate.day.equals(expense.date.day)))
+          .get();
+        for (final w in matchingWages) {
+          await (db.update(db.wagesTable)..where((t) => t.id.equals(w.id))).write(
+            WagesTableCompanion(
+              paymentMethod: Value(newPaymentMethod),
+            ),
+          );
+        }
+      });
 
       await ref.read(expenseNotifierProvider.notifier).loadExpenses();
+      await ref.read(labourNotifierProvider.notifier).loadWorkers();
       if (mounted) {
         showLabourSuccessFeedback(
           context,
@@ -77,68 +94,25 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
   }
 
   Future<void> _togglePaymentStatus(Expense expense) async {
-    try {
-      final db = ref.read(appDatabaseProvider);
-      final desc = expense.description.toLowerCase();
-      final isCurrentlyPending = desc.contains('(pending)') ||
-          desc.contains('(unpaid)') ||
-          desc.contains('(overdue)') ||
-          expense.paymentMethod == 'Pending';
-
-      final String newPaymentMethod;
-      final String updatedDesc;
-
-      if (isCurrentlyPending) {
-        newPaymentMethod = 'Cash';
-        updatedDesc = expense.description
-            .replaceAll('(Pending)', '(Paid)')
-            .replaceAll('(Unpaid)', '(Paid)')
-            .replaceAll('(Overdue)', '(Paid)');
-      } else {
-        newPaymentMethod = 'Pending';
-        updatedDesc = expense.description.replaceAll('(Paid)', '(Pending)');
-      }
-
-      await (db.update(db.expensesTable)..where((t) => t.id.equals(expense.id))).write(
-        ExpensesTableCompanion(
-          paymentMethod: Value(newPaymentMethod),
-          description: Value(updatedDesc),
-        ),
-      );
-
-      await ref.read(expenseNotifierProvider.notifier).loadExpenses();
-      if (mounted) {
-        showLabourSuccessFeedback(
-          context,
-          title: isCurrentlyPending ? 'Marked as Paid' : 'Marked as Pending',
-          subtitle: '₹${expense.amount.toStringAsFixed(0)} for ${widget.worker.fullName} updated.',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        showLabourErrorFeedback(
-          context,
-          title: 'Update Failed',
-          subtitle: e.toString(),
-        );
-      }
-    }
+    final desc = expense.description.toLowerCase();
+    final isCurrentlyPending = desc.contains('(pending)') ||
+        desc.contains('(unpaid)') ||
+        desc.contains('(overdue)') ||
+        expense.paymentMethod == 'Pending';
+    await _markPaymentStatus(expense, isCurrentlyPending);
   }
 
   Future<void> _deleteWageLog(Expense expense) async {
-    var title = expense.description;
-    if (title.toLowerCase().startsWith('labour:')) {
-      final parts = title.split('-');
-      if (parts.length > 1) {
-        title = parts.sublist(1).join('-').replaceAll(RegExp(r'\((Paid|Pending|Unpaid|Overdue)\)'), '').trim();
-      }
-    }
+    final info = WageLogInfo.parse(expense.description, defaultWorker: widget.worker.fullName);
+    final formattedDate = DateFormat('d MMM yyyy').format(expense.date);
 
     final confirmed = await DeleteWageLogDialog.show(
       context,
-      taskTitle: title,
+      taskTitle: info.taskTitle,
       workerName: widget.worker.fullName,
       amount: expense.amount,
+      formattedDate: formattedDate,
+      shiftName: info.shiftName,
       onConfirm: () {},
     );
 

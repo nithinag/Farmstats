@@ -1306,7 +1306,8 @@ Future<void> showWageLogActionSheet({
               ),
               const SizedBox(height: 16),
 
-              // Action 1: Edit Wage Log
+              // CONTEXTUAL ACTIONS:
+              // Action 1: Edit Wage Log (neutral/dark text with an edit icon)
               InkWell(
                 onTap: () {
                   Navigator.pop(ctx);
@@ -1329,61 +1330,85 @@ Future<void> showWageLogActionSheet({
               ),
               const Divider(height: 1, color: LabourColors.borderLight),
 
-              // Action 2: Mark as Paid
-              InkWell(
-                onTap: () {
-                  Navigator.pop(ctx);
-                  if (onMarkPaid != null) {
-                    onMarkPaid();
-                  } else {
-                    if (!isPaid) onToggleStatus();
-                  }
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle_outline_rounded, size: 20, color: LabourColors.forestGreen),
-                      SizedBox(width: 14),
-                      Text(
-                        'Mark as Paid',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.forestGreen),
-                      ),
-                    ],
+              // Contextual Action 2: If Pending -> Mark as Paid (forest-green text and confirmation icon)
+              if (!isPaid) ...[
+                InkWell(
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final confirmed = await ConfirmMarkPaidDialog.show(
+                      context,
+                      workerName: workerName,
+                      amount: amount,
+                      formattedDate: formattedDate,
+                      shiftName: displayShift,
+                      onConfirm: () {},
+                    );
+                    if (confirmed == true) {
+                      if (onMarkPaid != null) {
+                        onMarkPaid();
+                      } else {
+                        onToggleStatus();
+                      }
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded, size: 20, color: LabourColors.forestGreen),
+                        SizedBox(width: 14),
+                        Text(
+                          'Mark as Paid',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.forestGreen),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const Divider(height: 1, color: LabourColors.borderLight),
+                const Divider(height: 1, color: LabourColors.borderLight),
+              ],
 
-              // Action 3: Mark as Pending
-              InkWell(
-                onTap: () {
-                  Navigator.pop(ctx);
-                  if (onMarkPending != null) {
-                    onMarkPending();
-                  } else {
-                    if (isPaid) onToggleStatus();
-                  }
-                },
-                borderRadius: BorderRadius.circular(10),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                  child: Row(
-                    children: [
-                      Icon(Icons.access_time_rounded, size: 20, color: Color(0xFFD97706)),
-                      SizedBox(width: 14),
-                      Text(
-                        'Mark as Pending',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
-                      ),
-                    ],
+              // Contextual Action 3: If Paid -> Mark as Pending (amber/orange text with a clock icon)
+              if (isPaid) ...[
+                InkWell(
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    final confirmed = await ConfirmMarkPendingDialog.show(
+                      context,
+                      workerName: workerName,
+                      amount: amount,
+                      formattedDate: formattedDate,
+                      shiftName: displayShift,
+                      onConfirm: () {},
+                    );
+                    if (confirmed == true) {
+                      if (onMarkPending != null) {
+                        onMarkPending();
+                      } else {
+                        onToggleStatus();
+                      }
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                    child: Row(
+                      children: [
+                        Icon(Icons.access_time_rounded, size: 20, color: Color(0xFFD97706)),
+                        SizedBox(width: 14),
+                        Text(
+                          'Mark as Pending',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const Divider(height: 1, color: LabourColors.borderLight),
+                const Divider(height: 1, color: LabourColors.borderLight),
+              ],
 
-              // Action 4: Delete Wage Log
+              // Action 4: Delete Wage Log (red text and delete icon)
               InkWell(
                 onTap: () {
                   Navigator.pop(ctx);
@@ -1406,7 +1431,7 @@ Future<void> showWageLogActionSheet({
               ),
               const SizedBox(height: 16),
 
-              // Bottom Cancel button
+              // Bottom Full-Width Cancel button (dismisses the sheet)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -1430,10 +1455,332 @@ Future<void> showWageLogActionSheet({
   );
 }
 
+/// Confirmation Dialog when marking a Wage Log as Paid
+class ConfirmMarkPaidDialog extends StatelessWidget {
+  final String workerName;
+  final double amount;
+  final String formattedDate;
+  final String shiftName;
+  final VoidCallback onConfirm;
+
+  const ConfirmMarkPaidDialog({
+    super.key,
+    required this.workerName,
+    required this.amount,
+    required this.formattedDate,
+    required this.shiftName,
+    required this.onConfirm,
+  });
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required String workerName,
+    required double amount,
+    required String formattedDate,
+    required String shiftName,
+    required VoidCallback onConfirm,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => ConfirmMarkPaidDialog(
+        workerName: workerName,
+        amount: amount,
+        formattedDate: formattedDate,
+        shiftName: shiftName,
+        onConfirm: onConfirm,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: LabourColors.cardSurface,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: LabourColors.softGreenSurface,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.check_circle_rounded, color: LabourColors.forestGreen, size: 32),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Mark as Paid?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: LabourColors.primaryText,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'This will mark the wage as paid.',
+              style: TextStyle(
+                fontSize: 13,
+                color: LabourColors.secondaryText,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Information Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: LabourColors.background,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: LabourColors.border),
+              ),
+              child: Column(
+                children: [
+                  _buildDialogRow('Worker', workerName),
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Amount', currency.format(amount), isBold: true),
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Work Date', formattedDate),
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Shift', shiftName),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: const BorderSide(color: LabourColors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context, true);
+                      onConfirm();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: LabourColors.forestGreen,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Mark as Paid', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogRow(String label, String value, {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: LabourColors.secondaryText),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+            color: LabourColors.primaryText,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Confirmation Dialog when reverting a Wage Log to Pending
+class ConfirmMarkPendingDialog extends StatelessWidget {
+  final String workerName;
+  final double amount;
+  final String formattedDate;
+  final String shiftName;
+  final VoidCallback onConfirm;
+
+  const ConfirmMarkPendingDialog({
+    super.key,
+    required this.workerName,
+    required this.amount,
+    required this.formattedDate,
+    required this.shiftName,
+    required this.onConfirm,
+  });
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required String workerName,
+    required double amount,
+    required String formattedDate,
+    required String shiftName,
+    required VoidCallback onConfirm,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => ConfirmMarkPendingDialog(
+        workerName: workerName,
+        amount: amount,
+        formattedDate: formattedDate,
+        shiftName: shiftName,
+        onConfirm: onConfirm,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: LabourColors.cardSurface,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: LabourColors.softAmberSurface,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.access_time_rounded, color: Color(0xFFD97706), size: 30),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Mark as Pending?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: LabourColors.primaryText,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'This will revert the payment to pending dues.',
+              style: TextStyle(
+                fontSize: 13,
+                color: LabourColors.secondaryText,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Information Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: LabourColors.background,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: LabourColors.border),
+              ),
+              child: Column(
+                children: [
+                  _buildDialogRow('Worker', workerName),
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Amount', currency.format(amount), isBold: true),
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Work Date', formattedDate),
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Shift', shiftName),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      side: const BorderSide(color: LabourColors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context, true);
+                      onConfirm();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFD97706),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Mark as Pending', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogRow(String label, String value, {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: LabourColors.secondaryText),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+            color: LabourColors.primaryText,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Delete Wage Log Confirmation Dialog
 class DeleteWageLogDialog extends StatelessWidget {
   final String taskTitle;
   final String workerName;
+  final String? formattedDate;
+  final String? shiftName;
   final double amount;
   final VoidCallback onConfirm;
 
@@ -1441,6 +1788,8 @@ class DeleteWageLogDialog extends StatelessWidget {
     super.key,
     required this.taskTitle,
     required this.workerName,
+    this.formattedDate,
+    this.shiftName,
     required this.amount,
     required this.onConfirm,
   });
@@ -1449,6 +1798,8 @@ class DeleteWageLogDialog extends StatelessWidget {
     BuildContext context, {
     required String taskTitle,
     required String workerName,
+    String? formattedDate,
+    String? shiftName,
     required double amount,
     required VoidCallback onConfirm,
   }) {
@@ -1457,6 +1808,8 @@ class DeleteWageLogDialog extends StatelessWidget {
       builder: (ctx) => DeleteWageLogDialog(
         taskTitle: taskTitle,
         workerName: workerName,
+        formattedDate: formattedDate,
+        shiftName: shiftName,
         amount: amount,
         onConfirm: onConfirm,
       ),
@@ -1465,26 +1818,28 @@ class DeleteWageLogDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: LabourColors.cardSurface,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 56,
+              height: 56,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
                 color: LabourColors.softRedSurface,
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.delete_outline_rounded, color: LabourColors.error, size: 28),
+              child: const Icon(Icons.delete_outline_rounded, color: LabourColors.error, size: 30),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             const Text(
               'Delete Wage Log?',
               style: TextStyle(
@@ -1493,7 +1848,7 @@ class DeleteWageLogDialog extends StatelessWidget {
                 color: LabourColors.primaryText,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text(
               'This will permanently delete this wage log.\nThis action cannot be undone.',
               textAlign: TextAlign.center,
@@ -1503,18 +1858,47 @@ class DeleteWageLogDialog extends StatelessWidget {
                 color: LabourColors.secondaryText,
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 18),
+
+            // Information Card
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: LabourColors.background,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: LabourColors.border),
+              ),
+              child: Column(
+                children: [
+                  _buildDialogRow('Worker', workerName),
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Work Type', taskTitle),
+                  if (formattedDate != null) ...[
+                    const Divider(height: 16, color: LabourColors.borderLight),
+                    _buildDialogRow('Work Date', formattedDate!),
+                  ],
+                  if (shiftName != null) ...[
+                    const Divider(height: 16, color: LabourColors.borderLight),
+                    _buildDialogRow('Shift', shiftName!),
+                  ],
+                  const Divider(height: 16, color: LabourColors.borderLight),
+                  _buildDialogRow('Amount', currency.format(amount), isBold: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                       side: const BorderSide(color: LabourColors.border),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text('Cancel', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w600)),
+                    child: const Text('Cancel', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w700)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1527,11 +1911,11 @@ class DeleteWageLogDialog extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: LabourColors.error,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
                   ),
                 ),
               ],
@@ -1539,6 +1923,26 @@ class DeleteWageLogDialog extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildDialogRow(String label, String value, {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: LabourColors.secondaryText),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isBold ? FontWeight.w800 : FontWeight.w600,
+            color: LabourColors.primaryText,
+          ),
+        ),
+      ],
     );
   }
 }
