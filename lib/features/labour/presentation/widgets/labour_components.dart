@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../theme/labour_theme.dart';
 import '../../domain/entities/labour_entities.dart';
 import '../../application/services/worker_photo_service.dart';
+import '../../../batches/domain/entities/batch_entities.dart';
 
 /// Worker Avatar supporting persistent local photo or initials with pastel background
 class WorkerAvatar extends StatefulWidget {
@@ -133,8 +134,8 @@ class _WorkerAvatarState extends State<WorkerAvatar> {
   }
 }
 
-/// Component 6: Select Work Type Modal Bottom Sheet
-class SelectWorkTypeSheet extends StatelessWidget {
+/// Component 3: Select Work Type Modal Bottom Sheet
+class SelectWorkTypeSheet extends StatefulWidget {
   final String selectedTask;
   final ValueChanged<String> onSelected;
 
@@ -159,6 +160,19 @@ class SelectWorkTypeSheet extends StatelessWidget {
   }
 
   @override
+  State<SelectWorkTypeSheet> createState() => _SelectWorkTypeSheetState();
+}
+
+class _SelectWorkTypeSheetState extends State<SelectWorkTypeSheet> {
+  late String _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.selectedTask;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
@@ -177,18 +191,29 @@ class SelectWorkTypeSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
-            const Text(
-              'Select Work Type',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: LabourColors.primaryText,
-              ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Select Work Type',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: LabourColors.primaryText,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20, color: LabourColors.secondaryText),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
             ),
             const SizedBox(height: 14),
             ...LabourWorkType.sericultureTypes.map((type) {
-              final isSelected = selectedTask.toLowerCase().trim() == type.title.toLowerCase().trim();
+              final isSelected = _current.toLowerCase().trim() == type.title.toLowerCase().trim();
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
@@ -222,10 +247,25 @@ class SelectWorkTypeSheet extends StatelessWidget {
                   trailing: isSelected
                       ? const Icon(Icons.check_circle_rounded, color: LabourColors.forestGreen, size: 22)
                       : null,
-                  onTap: () => onSelected(type.title),
+                  onTap: () => setState(() => _current = type.title),
                 ),
               );
             }),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => widget.onSelected(_current),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: LabourColors.forestGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Done', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+            ),
           ],
         ),
       ),
@@ -233,8 +273,8 @@ class SelectWorkTypeSheet extends StatelessWidget {
   }
 }
 
-/// Component 7: Shift Selector Modal Bottom Sheet
-class SelectShiftSheet extends StatelessWidget {
+/// Component 2: Shift Selector Modal Bottom Sheet
+class SelectShiftSheet extends StatefulWidget {
   final FarmShift selectedShift;
   final ValueChanged<FarmShift> onSelected;
 
@@ -259,6 +299,19 @@ class SelectShiftSheet extends StatelessWidget {
   }
 
   @override
+  State<SelectShiftSheet> createState() => _SelectShiftSheetState();
+}
+
+class _SelectShiftSheetState extends State<SelectShiftSheet> {
+  late FarmShift _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.selectedShift;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
@@ -277,7 +330,7 @@ class SelectShiftSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -297,20 +350,11 @@ class SelectShiftSheet extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Default Shifts',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: LabourColors.secondaryText,
-              ),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             ...FarmShift.defaultShifts.map((shift) {
-              final isSelected = selectedShift.id == shift.id;
+              final isSelected = _current.id == shift.id;
               return Container(
-                margin: const EdgeInsets.only(bottom: 10),
+                margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
                   color: isSelected ? LabourColors.softGreenSurface : Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
@@ -319,40 +363,85 @@ class SelectShiftSheet extends StatelessWidget {
                     width: isSelected ? 1.5 : 1.0,
                   ),
                 ),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                  leading: Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: shift.bgColor,
-                      borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  onTap: () => setState(() => _current = shift),
+                  borderRadius: BorderRadius.circular(14),
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: shift.bgColor,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(shift.icon, color: shift.iconColor, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                shift.name,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                  color: LabourColors.primaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                shift.timeRange,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: LabourColors.secondaryText,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                shift.description,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  height: 1.3,
+                                  color: LabourColors.secondaryText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+                          color: isSelected ? LabourColors.forestGreen : LabourColors.secondaryText,
+                          size: 22,
+                        ),
+                      ],
                     ),
-                    alignment: Alignment.center,
-                    child: Icon(shift.icon, color: shift.iconColor, size: 22),
                   ),
-                  title: Text(
-                    shift.name,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                      color: LabourColors.primaryText,
-                    ),
-                  ),
-                  subtitle: Text(
-                    shift.timeRange,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: LabourColors.secondaryText,
-                    ),
-                  ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle_rounded, color: LabourColors.forestGreen, size: 22)
-                      : null,
-                  onTap: () => onSelected(shift),
                 ),
               );
             }),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => widget.onSelected(_current),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: LabourColors.forestGreen,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('Done', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white)),
+              ),
+            ),
           ],
         ),
       ),
@@ -511,42 +600,51 @@ class _WorkerPickerSheetState extends State<WorkerPickerSheet> {
   }
 }
 
-/// Component 10: Filter Wage Logs Modal Bottom Sheet
+/// Component 5: Filter Wage Logs Modal Bottom Sheet (Image Reference)
 class FilterWageLogsSheet extends StatefulWidget {
   final DateTime selectedMonth;
+  final List<Batch> batches;
+  final String? selectedBatchId;
   final List<LabourWorker> workers;
   final String? selectedWorkerId;
   final String? selectedWorkType;
   final String selectedStatus; // 'All', 'Paid', 'Pending'
-  final Function(DateTime month, String? workerId, String? workType, String status) onApply;
+  final Function(DateTime month, String? batchId, String? workerId, String? workType, String status) onApply;
 
   const FilterWageLogsSheet({
     super.key,
     required this.selectedMonth,
-    required this.workers,
+    this.batches = const [],
+    this.selectedBatchId,
+    this.workers = const [],
     this.selectedWorkerId,
     this.selectedWorkType,
-    required this.selectedStatus,
+    this.selectedStatus = 'All',
     required this.onApply,
   });
 
   static Future<void> show(
     BuildContext context, {
     required DateTime initialMonth,
-    required List<LabourWorker> workers,
+    List<Batch> batches = const [],
+    String? currentBatchId,
+    List<LabourWorker> workers = const [],
     String? currentWorkerId,
     String? currentWorkType,
-    required String currentStatus,
-    required Function(DateTime month, String? workerId, String? workType, String status) onApply,
+    String currentStatus = 'All',
+    required Function(DateTime month, String? batchId, String? workerId, String? workType, String status) onApply,
   }) {
     return showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: LabourColors.cardSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => FilterWageLogsSheet(
         selectedMonth: initialMonth,
+        batches: batches,
+        selectedBatchId: currentBatchId,
         workers: workers,
         selectedWorkerId: currentWorkerId,
         selectedWorkType: currentWorkType,
@@ -562,6 +660,7 @@ class FilterWageLogsSheet extends StatefulWidget {
 
 class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
   late DateTime _month;
+  String? _batchId;
   String? _workerId;
   String? _workType;
   late String _status;
@@ -570,6 +669,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
   void initState() {
     super.initState();
     _month = widget.selectedMonth;
+    _batchId = widget.selectedBatchId;
     _workerId = widget.selectedWorkerId;
     _workType = widget.selectedWorkType;
     _status = widget.selectedStatus;
@@ -594,7 +694,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -615,129 +715,161 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
               ],
             ),
             const SizedBox(height: 18),
-            // Month Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Month', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: LabourColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: LabourColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _month.month,
-                      isDense: true,
-                      icon: const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
-                      items: List.generate(12, (i) {
-                        final m = i + 1;
-                        final date = DateTime(_month.year, m);
-                        return DropdownMenuItem(
-                          value: m,
-                          child: Text(DateFormat('MMMM yyyy').format(date)),
-                        );
-                      }),
-                      onChanged: (newMonth) {
-                        if (newMonth != null) {
-                          setState(() => _month = DateTime(_month.year, newMonth));
-                        }
-                      },
-                    ),
-                  ),
+
+            // Month Label & Dropdown
+            const Text(
+              'Month',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: LabourColors.secondaryText,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                color: LabourColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LabourColors.border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<int>(
+                  value: _month.month,
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                  items: List.generate(12, (i) {
+                    final m = i + 1;
+                    final date = DateTime(_month.year, m);
+                    return DropdownMenuItem(
+                      value: m,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today_outlined, size: 16, color: LabourColors.forestGreen),
+                          const SizedBox(width: 10),
+                          Text(
+                            DateFormat('MMMM yyyy').format(date),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: LabourColors.primaryText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  onChanged: (newMonth) {
+                    if (newMonth != null) {
+                      setState(() => _month = DateTime(_month.year, newMonth));
+                    }
+                  },
                 ),
-              ],
+              ),
             ),
             const SizedBox(height: 16),
-            // Worker Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Worker', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: LabourColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: LabourColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: _workerId,
-                      isDense: true,
-                      icon: const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('All Workers')),
-                        ...widget.workers.map((w) => DropdownMenuItem(value: w.id, child: Text(w.fullName))),
-                      ],
-                      onChanged: (newId) => setState(() => _workerId = newId),
-                    ),
-                  ),
-                ),
-              ],
+
+            // Batch Label & Dropdown
+            const Text(
+              'Batch',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: LabourColors.secondaryText,
+              ),
             ),
-            const SizedBox(height: 16),
-            // Work Type Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Work Type', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: LabourColors.background,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: LabourColors.border),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String?>(
-                      value: _workType,
-                      isDense: true,
-                      icon: const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('All Types')),
-                        ...LabourWorkType.sericultureTypes.map(
-                          (t) => DropdownMenuItem(value: t.title, child: Text(t.title)),
-                        ),
-                      ],
-                      onChanged: (newType) => setState(() => _workType = newType),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-            // Status Chips
-            const Text('Status', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
-            const SizedBox(height: 10),
-            Row(
-              children: ['All', 'Paid', 'Pending'].map((st) {
-                final isSelected = _status.toLowerCase() == st.toLowerCase();
-                return Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: ChoiceChip(
-                    label: Text(
-                      st,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : LabourColors.secondaryText,
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+              decoration: BoxDecoration(
+                color: LabourColors.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: LabourColors.border),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String?>(
+                  value: _batchId,
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                  items: [
+                    const DropdownMenuItem(
+                      value: null,
+                      child: Row(
+                        children: [
+                          Icon(Icons.groups_outlined, size: 18, color: LabourColors.secondaryText),
+                          SizedBox(width: 10),
+                          Text('All Batches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
+                        ],
                       ),
                     ),
-                    selected: isSelected,
-                    selectedColor: LabourColors.forestGreen,
-                    backgroundColor: LabourColors.background,
-                    side: BorderSide(
-                      color: isSelected ? LabourColors.forestGreen : LabourColors.border,
+                    ...widget.batches.map(
+                      (b) => DropdownMenuItem(
+                        value: b.id,
+                        child: Row(
+                          children: [
+                            const Icon(Icons.layers_outlined, size: 18, color: LabourColors.forestGreen),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                b.batchName,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    onSelected: (_) => setState(() => _status = st),
-                  ),
-                );
-              }).toList(),
+                  ],
+                  onChanged: (newBatch) => setState(() => _batchId = newBatch),
+                ),
+              ),
             ),
+
+            // Optional Worker row if workers provided
+            if (widget.workers.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              const Text(
+                'Worker',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: LabourColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String?>(
+                    value: _workerId,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                    items: [
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text('All Workers', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      ),
+                      ...widget.workers.map(
+                        (w) => DropdownMenuItem(
+                          value: w.id,
+                          child: Text(w.fullName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        ),
+                      ),
+                    ],
+                    onChanged: (newId) => setState(() => _workerId = newId),
+                  ),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 24),
-            // Action Buttons
+            // Action Buttons: Reset & Apply
             Row(
               children: [
                 Expanded(
@@ -745,34 +877,35 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                     onPressed: () {
                       setState(() {
                         _month = DateTime.now();
+                        _batchId = null;
                         _workerId = null;
                         _workType = null;
                         _status = 'All';
                       });
                     },
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       side: const BorderSide(color: LabourColors.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    child: const Text('Clear', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w600)),
+                    child: const Text('Reset', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w700, fontSize: 14)),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      widget.onApply(_month, _workerId, _workType, _status);
+                      widget.onApply(_month, _batchId, _workerId, _workType, _status);
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: LabourColors.forestGreen,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       elevation: 0,
                     ),
-                    child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.w700)),
+                    child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
                   ),
                 ),
               ],
@@ -1027,21 +1160,25 @@ void showLabourErrorFeedback(BuildContext context, {required String title, requi
   );
 }
 
-/// Modal Action Sheet when tapping a Wage Log item
+/// Component 4: Modal Action Sheet when tapping a Wage Log item (Wage Log Options)
 Future<void> showWageLogActionSheet({
   required BuildContext context,
   required String taskTitle,
   required String workerName,
+  LabourWorker? worker,
+  String? shiftName,
   required String formattedDate,
   required double amount,
   required String status,
   VoidCallback? onEdit,
+  VoidCallback? onMarkPaid,
+  VoidCallback? onMarkPending,
   required VoidCallback onToggleStatus,
   required VoidCallback onDelete,
 }) {
   final isPaid = status.toLowerCase() == 'paid';
   final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
-  final type = LabourWorkType.findForTask(taskTitle);
+  final displayShift = shiftName ?? 'Day Shift';
 
   return showModalBottomSheet<void>(
     context: context,
@@ -1067,10 +1204,31 @@ Future<void> showWageLogActionSheet({
                   ),
                 ),
               ),
-              const SizedBox(height: 18),
-              // Header Card
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Wage Log Options',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: LabourColors.primaryText,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: LabourColors.secondaryText),
+                    onPressed: () => Navigator.pop(ctx),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Header Summary Card (Worker Avatar, Name, Task, Date & Shift)
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: LabourColors.background,
                   borderRadius: BorderRadius.circular(14),
@@ -1078,23 +1236,14 @@ Future<void> showWageLogActionSheet({
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: type.bgColor,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      alignment: Alignment.center,
-                      child: Icon(type.icon, color: type.iconColor, size: 24),
-                    ),
-                    const SizedBox(width: 14),
+                    WorkerAvatar(worker: worker, name: workerName, size: 46),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            taskTitle,
+                            workerName,
                             style: const TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
@@ -1103,9 +1252,20 @@ Future<void> showWageLogActionSheet({
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            '$workerName • $formattedDate',
+                            taskTitle,
                             style: const TextStyle(
                               fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: LabourColors.secondaryText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$formattedDate • $displayShift',
+                            style: const TextStyle(
+                              fontSize: 11,
                               color: LabourColors.secondaryText,
                             ),
                           ),
@@ -1118,14 +1278,14 @@ Future<void> showWageLogActionSheet({
                         Text(
                           currency.format(amount),
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 15,
                             fontWeight: FontWeight.w800,
                             color: LabourColors.primaryText,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: isPaid ? LabourColors.softGreenSurface : LabourColors.softAmberSurface,
                             borderRadius: BorderRadius.circular(8),
@@ -1144,78 +1304,121 @@ Future<void> showWageLogActionSheet({
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // Action 0: Edit Wage Log (if provided)
-              if (onEdit != null) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      onEdit();
-                    },
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: LabourColors.primaryText),
-                    label: const Text(
-                      'Edit Wage Log',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      backgroundColor: LabourColors.background,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: LabourColors.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-
-              // Action 1: Toggle Payment Status
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    onToggleStatus();
-                  },
-                  icon: Icon(
-                    isPaid ? Icons.access_time_rounded : Icons.check_circle_rounded,
-                    size: 18,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    isPaid ? 'Mark as Pending' : 'Mark as Paid',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isPaid ? const Color(0xFFD97706) : LabourColors.forestGreen,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
+              // Action 1: Edit Wage Log
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onEdit?.call();
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.edit_outlined, size: 20, color: LabourColors.primaryText),
+                      SizedBox(width: 14),
+                      Text(
+                        'Edit Wage Log',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const Divider(height: 1, color: LabourColors.borderLight),
 
-              // Action 2: Delete Wage Log
+              // Action 2: Mark as Paid
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  if (onMarkPaid != null) {
+                    onMarkPaid();
+                  } else {
+                    if (!isPaid) onToggleStatus();
+                  }
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_outline_rounded, size: 20, color: LabourColors.forestGreen),
+                      SizedBox(width: 14),
+                      Text(
+                        'Mark as Paid',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.forestGreen),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 1, color: LabourColors.borderLight),
+
+              // Action 3: Mark as Pending
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  if (onMarkPending != null) {
+                    onMarkPending();
+                  } else {
+                    if (isPaid) onToggleStatus();
+                  }
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.access_time_rounded, size: 20, color: Color(0xFFD97706)),
+                      SizedBox(width: 14),
+                      Text(
+                        'Mark as Pending',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 1, color: LabourColors.borderLight),
+
+              // Action 4: Delete Wage Log
+              InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onDelete();
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline_rounded, size: 20, color: LabourColors.error),
+                      SizedBox(width: 14),
+                      Text(
+                        'Delete Wage Log',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.error),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Bottom Cancel button
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    onDelete();
-                  },
-                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: LabourColors.error),
-                  label: const Text(
-                    'Delete Wage Log',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.error),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: LabourColors.softRedSurface,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: const BorderSide(color: LabourColors.border),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.secondaryText),
                   ),
                 ),
               ),

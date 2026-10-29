@@ -2,17 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:drift/drift.dart' hide Column;
+import 'package:drift/drift.dart' hide Column, Batch;
 import '../theme/labour_theme.dart';
 import '../widgets/labour_components.dart';
 import '../../domain/entities/labour_entities.dart';
 import '../../application/providers/labour_notifier.dart';
 import '../../application/providers/labour_state.dart';
+import '../../application/services/labour_calculation_service.dart';
+import '../../../batches/domain/entities/batch_entities.dart';
+import '../../../batches/application/providers/batch_notifier.dart';
+import '../../../batches/application/providers/batch_state.dart';
 import '../../../expenses/application/providers/expense_notifier.dart';
 import '../../../expenses/application/providers/expense_state.dart';
 import '../../../expenses/domain/entities/expense_entities.dart';
+import '../../../../core/services/export_service.dart';
 import '../../../../data/providers/database_provider.dart';
 import '../../../../data/database/app_database.dart';
+
+enum WorkerSort { name, totalEarned }
 
 class WorkerListScreen extends ConsumerStatefulWidget {
   const WorkerListScreen({super.key});
@@ -25,9 +32,15 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
   late TabController _tabController;
   final TextEditingController _workerSearchController = TextEditingController();
   
+  bool _isSearching = false;
+  WorkerSort _workerSort = WorkerSort.name;
+  bool _showActive = true;
+  bool _showInactive = false;
+
   // Wage Logs filtering state
   DateTime _wageLogMonth = DateTime.now();
   String _wageLogStatusFilter = 'All'; // 'All', 'Paid', 'Pending'
+  String? _selectedBatchId;
   String? _filterWorkerId;
   String? _filterWorkType;
   String _workerSearchQuery = '';
@@ -56,6 +69,43 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     _tabController.dispose();
     _workerSearchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _markExpenseStatus(Expense expense, bool makePaid) async {
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final newPaymentMethod = makePaid ? 'Cash' : 'Pending';
+      final updatedDesc = makePaid
+          ? expense.description
+              .replaceAll('(Pending)', '(Paid)')
+              .replaceAll('(Unpaid)', '(Paid)')
+              .replaceAll('(Overdue)', '(Paid)')
+          : expense.description.replaceAll('(Paid)', '(Pending)');
+
+      await (db.update(db.expensesTable)..where((t) => t.id.equals(expense.id))).write(
+        ExpensesTableCompanion(
+          paymentMethod: Value(newPaymentMethod),
+          description: Value(updatedDesc),
+        ),
+      );
+
+      await ref.read(expenseNotifierProvider.notifier).loadExpenses();
+      if (mounted) {
+        showLabourSuccessFeedback(
+          context,
+          title: makePaid ? 'Marked as Paid' : 'Marked as Pending',
+          subtitle: '₹${expense.amount.toStringAsFixed(0)} status updated successfully.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showLabourErrorFeedback(
+          context,
+          title: 'Update Failed',
+          subtitle: e.toString(),
+        );
+      }
+    }
   }
 
   Future<void> _toggleExpensePaymentStatus(Expense expense) async {
@@ -185,14 +235,17 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
     final labourState = ref.watch(labourNotifierProvider);
     final expenseState = ref.watch(expenseNotifierProvider);
+    final batchState = ref.watch(batchNotifierProvider);
 
     final allWorkers = switch (labourState) {
       LabourStateData(workers: final list) => list,
       _ => <LabourWorker>[],
     };
 
-    // Filter active workers for overview
-    final activeWorkers = allWorkers.where((w) => w.status == WorkerStatus.active).toList();
+    final allBatches = switch (batchState) {
+      BatchStateData(batches: final list) => list,
+      _ => <Batch>[],
+    };
 
     final allExpenses = switch (expenseState) {
       ExpenseStateData(expenses: final list) => list,
@@ -204,94 +257,221 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
       return e.category.id == 'c4' || e.description.toLowerCase().contains('labour');
     }).toList();
 
-    // Current month expenses for liabilities
-    final now = DateTime.now();
-    final currentMonthExpenses = labourExpenses.where((e) {
-      return e.date.year == now.year && e.date.month == now.month;
+    // Centralized financial calculations using LabourCalculationService
+    final totalPaidThisMonth = LabourCalculationService.calculateMonthlyPaid(labourExpenses, _wageLogMonth);
+    final pendingDuesResult = LabourCalculationService.calculatePendingDues(labourExpenses, allWorkers);
+    final totalPendingDues = pendingDuesResult.totalPending;
+    final pendingWorkersCount = pendingDuesResult.pendingWorkersCount;
+
+    // Filter workers by status
+    var displayedWorkers = allWorkers.where((w) {
+      if (w.status == WorkerStatus.active && !_showActive) return false;
+      if (w.status == WorkerStatus.inactive && !_showInactive) return false;
+      return true;
     }).toList();
 
-    final paidExpensesThisMonth = currentMonthExpenses.where((e) {
-      final d = e.description.toLowerCase();
-      final isPending = d.contains('(pending)') ||
-          d.contains('(unpaid)') ||
-          d.contains('(overdue)') ||
-          e.paymentMethod == 'Pending';
-      return !isPending;
-    }).toList();
-
-    final totalPaidThisMonth = paidExpensesThisMonth.fold(0.0, (sum, e) => sum + e.amount);
-
-    // Pending dues across all months
-    final allPendingExpenses = labourExpenses.where((e) {
-      final d = e.description.toLowerCase();
-      return d.contains('(pending)') ||
-          d.contains('(unpaid)') ||
-          d.contains('(overdue)') ||
-          e.paymentMethod == 'Pending';
-    }).toList();
-
-    final totalPendingDues = allPendingExpenses.fold(0.0, (sum, e) => sum + e.amount);
-
-    // Distinct workers with pending dues
-    final workersWithPending = <String>{};
-    for (final exp in allPendingExpenses) {
-      for (final w in activeWorkers) {
-        if (exp.description.toLowerCase().contains(w.fullName.toLowerCase())) {
-          workersWithPending.add(w.id);
-          break;
-        }
-      }
-    }
-    final pendingWorkersCount = workersWithPending.length;
-
-    // Filtered workers list
-    final filteredWorkers = activeWorkers.where((w) {
-      if (_workerSearchQuery.isEmpty) return true;
+    // Filter workers by search query
+    if (_workerSearchQuery.isNotEmpty) {
       final q = _workerSearchQuery.toLowerCase();
-      return w.fullName.toLowerCase().contains(q) || w.phoneNumber.contains(q);
-    }).toList();
+      displayedWorkers = displayedWorkers.where((w) {
+        return w.fullName.toLowerCase().contains(q) || w.phoneNumber.contains(q);
+      }).toList();
+    }
+
+    // Sort workers
+    if (_workerSort == WorkerSort.name) {
+      displayedWorkers.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+    } else {
+      displayedWorkers.sort((a, b) {
+        final aEarned = LabourCalculationService.calculateWorkerAllTime(labourExpenses, a.fullName).totalEarned;
+        final bEarned = LabourCalculationService.calculateWorkerAllTime(labourExpenses, b.fullName).totalEarned;
+        return bEarned.compareTo(aEarned);
+      });
+    }
 
     // Determine current selected tab reactively from animation/index for seamless swipe feedback
     final animValue = _tabController.animation?.value ?? _tabController.index.toDouble();
     final isWorkersSelected = animValue < 0.5;
 
-    final isFiltered = _filterWorkerId != null || _wageLogStatusFilter != 'All' || _filterWorkType != null;
+    final isFiltered = _selectedBatchId != null || _filterWorkerId != null || _wageLogStatusFilter != 'All' || _filterWorkType != null;
 
     return Scaffold(
       backgroundColor: LabourColors.background,
-      appBar: AppBar(
-        backgroundColor: LabourColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: LabourColors.primaryText),
-          onPressed: () {
-            if (Navigator.maybeOf(context)?.canPop() == true) {
-              context.pop();
-            } else {
-              context.go('/');
-            }
-          },
-        ),
-        title: const Text(
-          'Labour & Wages',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: LabourColors.primaryText,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search, color: LabourColors.primaryText),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: LabourColors.primaryText),
-            onPressed: () {},
-          ),
-        ],
-      ),
+      appBar: _isSearching
+          ? AppBar(
+              backgroundColor: LabourColors.background,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: LabourColors.primaryText),
+                onPressed: () {
+                  setState(() {
+                    _isSearching = false;
+                    _workerSearchQuery = '';
+                    _workerSearchController.clear();
+                  });
+                },
+              ),
+              title: TextField(
+                controller: _workerSearchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search workers or phone...',
+                  hintStyle: TextStyle(fontSize: 14, color: LabourColors.mutedText),
+                  border: InputBorder.none,
+                ),
+                onChanged: (val) => setState(() => _workerSearchQuery = val.trim()),
+              ),
+              actions: [
+                if (_workerSearchQuery.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.clear_rounded, color: LabourColors.secondaryText),
+                    onPressed: () {
+                      setState(() {
+                        _workerSearchQuery = '';
+                        _workerSearchController.clear();
+                      });
+                    },
+                  ),
+              ],
+            )
+          : AppBar(
+              backgroundColor: LabourColors.background,
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: LabourColors.primaryText),
+                onPressed: () {
+                  if (Navigator.maybeOf(context)?.canPop() == true) {
+                    context.pop();
+                  } else {
+                    context.go('/');
+                  }
+                },
+              ),
+              title: const Text(
+                'Labour & Wages',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: LabourColors.primaryText,
+                ),
+              ),
+              centerTitle: true,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search, color: LabourColors.primaryText),
+                  onPressed: () => setState(() => _isSearching = true),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert, color: LabourColors.primaryText),
+                  onSelected: (val) async {
+                    if (val == 'search') {
+                      setState(() => _isSearching = true);
+                    } else if (val == 'sort_name') {
+                      setState(() => _workerSort = WorkerSort.name);
+                    } else if (val == 'sort_earned') {
+                      setState(() => _workerSort = WorkerSort.totalEarned);
+                    } else if (val == 'filter_active') {
+                      setState(() => _showActive = !_showActive);
+                    } else if (val == 'filter_inactive') {
+                      setState(() => _showInactive = !_showInactive);
+                    } else if (val == 'export') {
+                      try {
+                        final db = ref.read(appDatabaseProvider);
+                        final exportService = ExportService(db);
+                        final path = await exportService.exportWorkersToCsv();
+                        if (mounted && context.mounted) {
+                          if (path != null) {
+                            showLabourSuccessFeedback(
+                              context,
+                              title: 'Workers Exported',
+                              subtitle: 'Saved CSV of workers and wage data.',
+                            );
+                          } else {
+                            showLabourErrorFeedback(
+                              context,
+                              title: 'Export Failed',
+                              subtitle: 'Could not export workers data.',
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        if (mounted && context.mounted) {
+                          showLabourErrorFeedback(
+                            context,
+                            title: 'Export Failed',
+                            subtitle: e.toString(),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'search',
+                      child: Row(
+                        children: [
+                          Icon(Icons.search_rounded, size: 18, color: LabourColors.primaryText),
+                          SizedBox(width: 10),
+                          Text('Search Workers'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'sort_name',
+                      child: Row(
+                        children: [
+                          Icon(Icons.sort_by_alpha_rounded, size: 18, color: _workerSort == WorkerSort.name ? LabourColors.forestGreen : LabourColors.primaryText),
+                          const SizedBox(width: 10),
+                          const Text('Sort by Name'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'sort_earned',
+                      child: Row(
+                        children: [
+                          Icon(Icons.trending_up_rounded, size: 18, color: _workerSort == WorkerSort.totalEarned ? LabourColors.forestGreen : LabourColors.primaryText),
+                          const SizedBox(width: 10),
+                          const Text('Sort by Total Earned'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(
+                      value: 'filter_active',
+                      child: Row(
+                        children: [
+                          Icon(_showActive ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded, size: 18, color: LabourColors.forestGreen),
+                          const SizedBox(width: 10),
+                          const Text('Active Workers'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'filter_inactive',
+                      child: Row(
+                        children: [
+                          Icon(_showInactive ? Icons.check_box_rounded : Icons.check_box_outline_blank_rounded, size: 18, color: LabourColors.forestGreen),
+                          const SizedBox(width: 10),
+                          const Text('Inactive Workers'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(
+                      value: 'export',
+                      child: Row(
+                        children: [
+                          Icon(Icons.download_rounded, size: 18, color: LabourColors.primaryText),
+                          SizedBox(width: 10),
+                          Text('Export Workers'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
       body: SafeArea(
         child: Column(
           children: [
@@ -342,14 +522,15 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
                     totalPaidThisMonth: totalPaidThisMonth,
                     totalPendingDues: totalPendingDues,
                     pendingWorkersCount: pendingWorkersCount,
-                    workers: filteredWorkers,
+                    workers: displayedWorkers,
                     labourExpenses: labourExpenses,
                   ),
 
                   // Tab 2: Screen 4 — Wage Logs List
                   _buildWageLogsTab(
                     currency: currency,
-                    activeWorkers: activeWorkers,
+                    activeWorkers: allWorkers.where((w) => w.status == WorkerStatus.active).toList(),
+                    batches: allBatches,
                     labourExpenses: labourExpenses,
                     isFiltered: isFiltered,
                   ),
@@ -389,7 +570,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
   }
 
   // -------------------------------------------------------------
-  // SCREEN 1: WORKERS OVERVIEW (Banner card removed completely)
+  // SCREEN 1: WORKERS OVERVIEW
   // -------------------------------------------------------------
   Widget _buildWorkersOverviewTab({
     required NumberFormat currency,
@@ -408,7 +589,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
         children: [
-          // 2 KPI Summary Cards Row (Banner Card Removed Completely)
+          // 2 KPI Summary Cards Row
           Row(
             children: [
               // Total Paid Wages
@@ -517,48 +698,9 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
               ),
             ],
           ),
-          const SizedBox(height: 16),
-
-          // Search Field + Filter Button Row
-          Row(
-            children: [
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: LabourColors.cardSurface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: LabourColors.border),
-                  ),
-                  child: TextField(
-                    controller: _workerSearchController,
-                    onChanged: (val) => setState(() => _workerSearchQuery = val.trim()),
-                    decoration: const InputDecoration(
-                      hintText: 'Search workers...',
-                      hintStyle: TextStyle(fontSize: 13, color: LabourColors.mutedText),
-                      prefixIcon: Icon(Icons.search, color: LabourColors.secondaryText, size: 20),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                decoration: BoxDecoration(
-                  color: LabourColors.cardSurface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LabourColors.border),
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.tune_rounded, color: LabourColors.secondaryText, size: 20),
-                  onPressed: () {},
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 18),
 
-          // Section Header: Farm Workers (X) + Add Button
+          // Section Header: Farm Workers (N) + Add Button
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -573,7 +715,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
               ElevatedButton.icon(
                 onPressed: () => context.push('/labour/add'),
                 icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                label: const Text('Add Worker', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                label: const Text('Add', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LabourColors.forestGreen,
                   foregroundColor: Colors.white,
@@ -624,10 +766,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
             )
           else
             ...workers.map((worker) {
-              final wExpenses = labourExpenses.where((e) {
-                return e.description.toLowerCase().contains(worker.fullName.toLowerCase());
-              }).toList();
-              final totalEarned = wExpenses.fold(0.0, (sum, e) => sum + e.amount);
+              final totalEarned = LabourCalculationService.calculateWorkerAllTime(labourExpenses, worker.fullName).totalEarned;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
@@ -720,6 +859,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
   Widget _buildWageLogsTab({
     required NumberFormat currency,
     required List<LabourWorker> activeWorkers,
+    required List<Batch> batches,
     required List<Expense> labourExpenses,
     required bool isFiltered,
   }) {
@@ -727,6 +867,11 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     var filtered = labourExpenses.where((e) {
       return e.date.year == _wageLogMonth.year && e.date.month == _wageLogMonth.month;
     }).toList();
+
+    // Filter by batch if set
+    if (_selectedBatchId != null) {
+      filtered = filtered.where((e) => e.batchId == _selectedBatchId).toList();
+    }
 
     // Filter by worker if set
     if (_filterWorkerId != null) {
@@ -778,7 +923,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
 
     return Column(
       children: [
-        // Month Navigation Row with Filter Tag Button (Image 4)
+        // Month Navigation Row with Filter Funnel Button (Screen 4 visual reference)
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
           child: Row(
@@ -841,21 +986,74 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
                 ),
                 child: IconButton(
                   icon: Icon(
-                    Icons.tune_rounded,
+                    Icons.filter_alt_outlined,
                     color: isFiltered ? LabourColors.forestGreen : LabourColors.secondaryText,
                     size: 20,
                   ),
                   tooltip: 'Filter Wage Logs',
-                  onPressed: () => _showWageLogFilterSheet(activeWorkers),
+                  onPressed: () => _showWageLogFilterSheet(activeWorkers, batches),
                 ),
               ),
             ],
           ),
         ),
 
+        // Screen 4: Batch Selector Dropdown row directly beneath month navigation
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+            decoration: BoxDecoration(
+              color: LabourColors.cardSurface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: LabourColors.border),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String?>(
+                value: _selectedBatchId,
+                isExpanded: true,
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                items: [
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Row(
+                      children: [
+                        Icon(Icons.groups_outlined, size: 18, color: LabourColors.secondaryText),
+                        SizedBox(width: 10),
+                        Text('All Batches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
+                      ],
+                    ),
+                  ),
+                  ...batches.map(
+                    (b) => DropdownMenuItem(
+                      value: b.id,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.layers_outlined, size: 18, color: LabourColors.forestGreen),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              b.batchName,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+                onChanged: (newBatch) {
+                  setState(() => _selectedBatchId = newBatch);
+                },
+              ),
+            ),
+          ),
+        ),
+
         // Status Filter Chips Row
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
+          padding: const EdgeInsets.fromLTRB(20, 2, 20, 6),
           child: Row(
             children: [
               _buildWageLogFilterChip(
@@ -954,7 +1152,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
                             ),
                           ),
                         ),
-                        ...entries.map((entry) => _buildWageLogCard(entry, currency)),
+                        ...entries.map((entry) => _buildWageLogCard(entry, currency, activeWorkers)),
                       ],
                     );
                   },
@@ -1014,10 +1212,9 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     );
   }
 
-  /// Worker-First Wage Log Card Hierarchy (Image 4 & Section 3.D)
-  Widget _buildWageLogCard(Expense e, NumberFormat currency) {
+  /// Worker-First Wage Log Card Hierarchy (Screen 4 visual reference)
+  Widget _buildWageLogCard(Expense e, NumberFormat currency, List<LabourWorker> activeWorkers) {
     final info = WageLogInfo.parse(e.description);
-    final type = LabourWorkType.findForTask(info.taskTitle);
     final isPaid = info.status.toLowerCase() == 'paid';
     final isOverdue = info.status.toLowerCase() == 'overdue';
 
@@ -1027,6 +1224,19 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     final statusColor = isOverdue
         ? LabourColors.error
         : (isPaid ? LabourColors.forestGreen : const Color(0xFFD97706));
+
+    final matchedWorker = activeWorkers.firstWhere(
+      (w) => w.fullName.toLowerCase().trim() == info.workerName.toLowerCase().trim(),
+      orElse: () => LabourWorker(
+        id: '',
+        fullName: info.workerName,
+        phoneNumber: '',
+        role: WorkerRole.feeder,
+        dailyWage: e.amount,
+        joiningDate: e.date,
+        status: WorkerStatus.active,
+      ),
+    );
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1042,10 +1252,14 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
             context: context,
             taskTitle: info.taskTitle,
             workerName: info.workerName,
+            worker: matchedWorker,
+            shiftName: info.shiftName,
             formattedDate: DateFormat('d MMM yyyy').format(e.date),
             amount: e.amount,
             status: info.status,
             onEdit: () => context.push('/labour/attendance', extra: e),
+            onMarkPaid: () => _markExpenseStatus(e, true),
+            onMarkPending: () => _markExpenseStatus(e, false),
             onToggleStatus: () => _toggleExpensePaymentStatus(e),
             onDelete: () => _deleteWageLog(e),
           );
@@ -1056,25 +1270,15 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Far Left: Work type icon in soft circular/rounded container
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: type.bgColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Icon(type.icon, color: type.iconColor, size: 22),
-              ),
+              // Far Left: Worker Avatar (Screen 4 reference image)
+              WorkerAvatar(worker: matchedWorker, name: info.workerName, size: 42),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Line 1: Worker Name on Left, Amount on Right
+                    // Line 1: Worker Name on Left, Amount on Right, Chevron >
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Expanded(
                           child: Text(
@@ -1096,32 +1300,32 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
                             color: LabourColors.primaryText,
                           ),
                         ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded, color: LabourColors.secondaryText, size: 18),
                       ],
                     ),
                     const SizedBox(height: 2),
-                    // Line 2: Shift info (e.g. Day Shift • 10:00 AM - 6:00 PM)
+                    // Line 2: Work Type
                     Text(
-                      info.shiftCardDisplay,
+                      info.taskTitle,
                       style: const TextStyle(
                         fontSize: 12,
+                        fontWeight: FontWeight.w500,
                         color: LabourColors.secondaryText,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    // Line 3: Work Type on Left, Status Pill on Right
+                    const SizedBox(height: 3),
+                    // Line 3: Shift info on Left, Status Pill on Right
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Text(
-                            info.taskTitle,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: LabourColors.secondaryText,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        Text(
+                          info.shiftCardDisplay,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: LabourColors.secondaryText,
                           ),
                         ),
                         Container(
@@ -1151,17 +1355,20 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     );
   }
 
-  void _showWageLogFilterSheet(List<LabourWorker> activeWorkers) {
+  void _showWageLogFilterSheet(List<LabourWorker> activeWorkers, List<Batch> batches) {
     FilterWageLogsSheet.show(
       context,
       initialMonth: _wageLogMonth,
+      batches: batches,
+      currentBatchId: _selectedBatchId,
       workers: activeWorkers,
       currentWorkerId: _filterWorkerId,
       currentWorkType: _filterWorkType,
       currentStatus: _wageLogStatusFilter,
-      onApply: (month, workerId, workType, status) {
+      onApply: (month, batchId, workerId, workType, status) {
         setState(() {
           _wageLogMonth = month;
+          _selectedBatchId = batchId;
           _filterWorkerId = workerId;
           _filterWorkType = workType;
           _wageLogStatusFilter = status;

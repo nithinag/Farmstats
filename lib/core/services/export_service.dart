@@ -68,6 +68,35 @@ class ExportService {
     return file?.path;
   }
 
+  Future<String?> exportWorkersToCsv() async {
+    final workers = await db.select(db.workersTable).get();
+    final expenses = await db.expenseDao.getAllExpenses();
+    final labourExpenses = expenses.where((e) => e.category.id == 'c4' || e.expense.description.toLowerCase().contains('labour')).toList();
+
+    final List<List<dynamic>> rows = [];
+    rows.add(['ID', 'Full Name', 'Phone Number', 'Daily Wage', 'Status', 'Total Earned', 'Address', 'Notes']);
+
+    for (final w in workers) {
+      final wExp = labourExpenses.where((e) => e.expense.description.toLowerCase().contains(w.fullName.toLowerCase()));
+      final totalEarned = wExp.fold(0.0, (sum, item) => sum + item.expense.amount);
+      rows.add([
+        w.id,
+        w.fullName,
+        w.phoneNumber,
+        w.dailyWage,
+        w.status,
+        totalEarned,
+        w.address ?? '',
+        w.notes ?? '',
+      ]);
+    }
+
+    final csvString = rows.map((row) => row.map((e) => '"${e.toString().replaceAll('"', '""')}"').join(',')).join('\n');
+    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-');
+    final file = await FileStorageService.saveFile(ExportType.csv, 'farm_workers_$timestamp.csv', csvString);
+    return file?.path;
+  }
+
   Future<String?> generatePdfReport() async {
     final pdf = pw.Document();
     

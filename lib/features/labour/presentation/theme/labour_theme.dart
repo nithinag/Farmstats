@@ -119,6 +119,7 @@ class FarmShift {
   final String startTime;
   final String endTime;
   final double defaultHours;
+  final String description;
   final IconData icon;
   final Color iconColor;
   final Color bgColor;
@@ -129,6 +130,7 @@ class FarmShift {
     required this.startTime,
     required this.endTime,
     required this.defaultHours,
+    required this.description,
     this.icon = Icons.wb_sunny_rounded,
     this.iconColor = const Color(0xFFF59E0B),
     this.bgColor = const Color(0xFFFEF3C7),
@@ -144,6 +146,7 @@ class FarmShift {
     startTime: '6:00 AM',
     endTime: '9:00 AM',
     defaultHours: 3.0,
+    description: 'Feeding, bed cleaning and early farm activities.',
     icon: Icons.wb_twilight_rounded,
     iconColor: Color(0xFFEAB308),
     bgColor: Color(0xFFFEF9C3),
@@ -155,6 +158,7 @@ class FarmShift {
     startTime: '10:00 AM',
     endTime: '6:00 PM',
     defaultHours: 8.0,
+    description: 'Routine rearing, mulberry leaf handling, cleaning and other farm work.',
     icon: Icons.wb_sunny_rounded,
     iconColor: Color(0xFFF97316),
     bgColor: Color(0xFFFFEDD5),
@@ -191,6 +195,8 @@ class WageLogInfo {
   });
 
   String get shiftCardDisplay => '$shiftName • $shiftTimeRange';
+  bool get isPending => status.toLowerCase() == 'pending' || status.toLowerCase() == 'unpaid' || status.toLowerCase() == 'overdue';
+  bool get isPaid => !isPending;
 
   static WageLogInfo parse(String description, {String defaultWorker = 'Worker'}) {
     String raw = description.trim();

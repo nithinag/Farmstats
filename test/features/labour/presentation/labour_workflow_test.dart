@@ -128,11 +128,35 @@ void main() {
 
       // Workers list
       expect(find.text('Farm Workers (2)'), findsOneWidget);
-      expect(find.text('Add Worker'), findsOneWidget);
+      expect(find.text('Add'), findsOneWidget);
       expect(find.text('Nithin'), findsOneWidget);
       expect(find.text('+91 74186 61938'), findsOneWidget);
       expect(find.text('Samantha'), findsOneWidget);
       expect(find.text('+91 76760 76579'), findsOneWidget);
+
+      // Verify redundant search field from body is removed completely
+      expect(find.widgetWithText(TextField, 'Search workers...'), findsNothing);
+
+      // Verify AppBar search action opens compact search
+      final searchIcon = find.byIcon(Icons.search);
+      expect(searchIcon, findsOneWidget);
+      await tester.tap(searchIcon);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.enterText(find.byType(TextField), 'Nithin');
+      await tester.pumpAndSettle();
+      expect(find.text('Nithin'), findsWidgets);
+      expect(find.text('Samantha'), findsNothing);
+
+      // Clear search
+      await tester.tap(find.byIcon(Icons.clear_rounded));
+      await tester.pumpAndSettle();
+      expect(find.text('Samantha'), findsOneWidget);
+
+      // Exit search mode
+      await tester.tap(find.byIcon(Icons.arrow_back_rounded));
+      await tester.pumpAndSettle();
 
       // Verify Banner is removed completely
       expect(find.textContaining('Manage your farm workers'), findsNothing);
@@ -145,6 +169,7 @@ void main() {
       expect(find.textContaining('All ('), findsOneWidget);
       expect(find.textContaining('Paid ('), findsOneWidget);
       expect(find.textContaining('Pending ('), findsOneWidget);
+      expect(find.text('All Batches'), findsOneWidget);
       expect(find.text('Add Wage Log'), findsOneWidget);
 
       // Worker-first card hierarchy: worker names and shift displays
@@ -325,12 +350,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Select Shift'), findsOneWidget);
-      expect(find.text('Default Shifts'), findsOneWidget);
       expect(find.text('Early Morning Shift'), findsOneWidget);
       expect(find.text('Day Shift'), findsWidgets);
 
-      // Select Early Morning Shift
+      // Select Early Morning Shift and confirm Done
       await tester.tap(find.text('Early Morning Shift'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
       expect(find.text('Early Morning Shift'), findsOneWidget);
 

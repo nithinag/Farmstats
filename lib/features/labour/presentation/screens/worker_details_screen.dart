@@ -7,6 +7,7 @@ import '../theme/labour_theme.dart';
 import '../widgets/labour_components.dart';
 import '../../domain/entities/labour_entities.dart';
 import '../../application/providers/labour_notifier.dart';
+import '../../application/services/labour_calculation_service.dart';
 import '../../../expenses/application/providers/expense_notifier.dart';
 import '../../../expenses/application/providers/expense_state.dart';
 import '../../../expenses/domain/entities/expense_entities.dart';
@@ -36,6 +37,43 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  Future<void> _markPaymentStatus(Expense expense, bool makePaid) async {
+    try {
+      final db = ref.read(appDatabaseProvider);
+      final newPaymentMethod = makePaid ? 'Cash' : 'Pending';
+      final updatedDesc = makePaid
+          ? expense.description
+              .replaceAll('(Pending)', '(Paid)')
+              .replaceAll('(Unpaid)', '(Paid)')
+              .replaceAll('(Overdue)', '(Paid)')
+          : expense.description.replaceAll('(Paid)', '(Pending)');
+
+      await (db.update(db.expensesTable)..where((t) => t.id.equals(expense.id))).write(
+        ExpensesTableCompanion(
+          paymentMethod: Value(newPaymentMethod),
+          description: Value(updatedDesc),
+        ),
+      );
+
+      await ref.read(expenseNotifierProvider.notifier).loadExpenses();
+      if (mounted) {
+        showLabourSuccessFeedback(
+          context,
+          title: makePaid ? 'Marked as Paid' : 'Marked as Pending',
+          subtitle: '₹${expense.amount.toStringAsFixed(0)} for ${widget.worker.fullName} updated.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showLabourErrorFeedback(
+          context,
+          title: 'Update Failed',
+          subtitle: e.toString(),
+        );
+      }
+    }
   }
 
   Future<void> _togglePaymentStatus(Expense expense) async {
@@ -196,29 +234,18 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
       return e.description.toLowerCase().contains(widget.worker.fullName.toLowerCase());
     }).toList();
 
-    // Calculate all-time summaries
-    final totalEarned = workerExpenses.fold(0.0, (sum, e) => sum + e.amount);
-    
-    // Total days: distinct dates with wage logs
-    final distinctDates = workerExpenses.map((e) => DateFormat('yyyy-MM-dd').format(e.date)).toSet();
-    final totalDays = distinctDates.length;
+    // Calculate all-time summaries using LabourCalculationService
+    final allTimeSummary = LabourCalculationService.calculateWorkerAllTime(allExpenses, widget.worker.fullName);
+    final totalEarned = allTimeSummary.totalEarned;
+    final totalDays = allTimeSummary.totalDays;
 
-    // Filter for selected month
+    // Filter and calculate period summary for selected month using LabourCalculationService
+    final periodSummary = LabourCalculationService.calculateWorkerPeriodSummary(allExpenses, widget.worker.fullName, _selectedMonth);
+
+    // Month expenses
     final monthExpenses = workerExpenses.where((e) {
       return e.date.year == _selectedMonth.year && e.date.month == _selectedMonth.month;
     }).toList();
-
-    final monthPaidExpenses = monthExpenses.where((e) {
-      final desc = e.description.toLowerCase();
-      final isPending = desc.contains('(pending)') || desc.contains('(unpaid)') || desc.contains('(overdue)') || e.paymentMethod == 'Pending';
-      return !isPending;
-    }).toList();
-
-    final monthPendingExpenses = monthExpenses.where((e) => !monthPaidExpenses.contains(e)).toList();
-
-    final monthTotalPaid = monthPaidExpenses.fold(0.0, (sum, e) => sum + e.amount);
-    final monthTotalPending = monthPendingExpenses.fold(0.0, (sum, e) => sum + e.amount);
-    final monthTotal = monthTotalPaid + monthTotalPending;
 
     return Scaffold(
       backgroundColor: LabourColors.background,
@@ -389,19 +416,19 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                   // Tab 1: Overview
                   _buildOverviewTab(
                     currency: currency,
-                    monthTotalPaid: monthTotalPaid,
-                    monthPaidCount: monthPaidExpenses.length,
-                    monthTotalPending: monthTotalPending,
-                    monthPendingCount: monthPendingExpenses.length,
-                    monthTotal: monthTotal,
-                    monthTotalCount: monthExpenses.length,
+                    monthTotalPaid: periodSummary.paid,
+                    monthPaidCount: periodSummary.paidCount,
+                    monthTotalPending: periodSummary.pending,
+                    monthPendingCount: periodSummary.pendingCount,
+                    monthTotal: periodSummary.total,
+                    monthTotalCount: periodSummary.totalCount,
                     recentExpenses: workerExpenses.take(5).toList(),
                   ),
 
                   // Tab 2: Wage Logs
                   _buildWageLogsTab(
                     currency: currency,
-                    expenses: workerExpenses,
+                    monthExpenses: monthExpenses,
                   ),
                 ],
               ),
@@ -473,6 +500,50 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
     );
   }
 
+  Widget _buildMonthSelector() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      decoration: BoxDecoration(
+        color: LabourColors.cardSurface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: LabourColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          value: _selectedMonth.month,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+          items: List.generate(12, (i) {
+            final m = i + 1;
+            final date = DateTime(_selectedMonth.year, m);
+            return DropdownMenuItem(
+              value: m,
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today_outlined, size: 16, color: LabourColors.forestGreen),
+                  const SizedBox(width: 10),
+                  Text(
+                    DateFormat('MMMM yyyy').format(date),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: LabourColors.primaryText,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+          onChanged: (newM) {
+            if (newM != null) {
+              setState(() => _selectedMonth = DateTime(_selectedMonth.year, newM));
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildOverviewTab({
     required NumberFormat currency,
     required double monthTotalPaid,
@@ -486,56 +557,9 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       children: [
-        // Month Selector
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.calendar_today_outlined, size: 16, color: LabourColors.forestGreen),
-                const SizedBox(width: 6),
-                Text(
-                  _selectedMonth.month == DateTime.now().month && _selectedMonth.year == DateTime.now().year
-                      ? 'This Month'
-                      : DateFormat('MMMM yyyy').format(_selectedMonth),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: LabourColors.forestGreen,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: LabourColors.cardSurface,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: LabourColors.border),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _selectedMonth.month,
-                  isDense: true,
-                  icon: const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
-                  items: List.generate(12, (i) {
-                    final m = i + 1;
-                    return DropdownMenuItem(
-                      value: m,
-                      child: Text(DateFormat('MMM yyyy').format(DateTime(_selectedMonth.year, m))),
-                    );
-                  }),
-                  onChanged: (newM) {
-                    if (newM != null) {
-                      setState(() => _selectedMonth = DateTime(_selectedMonth.year, newM));
-                    }
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+        // Month Selector Dropdown
+        _buildMonthSelector(),
+        const SizedBox(height: 14),
 
         // 3 Summary Cards
         Row(
@@ -649,22 +673,62 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
     );
   }
 
-  Widget _buildWageLogsTab({required NumberFormat currency, required List<Expense> expenses}) {
-    if (expenses.isEmpty) {
-      return const Center(
-        child: Text('No wage logs recorded for this worker yet', style: TextStyle(fontSize: 13, color: LabourColors.secondaryText)),
-      );
+  Widget _buildWageLogsTab({required NumberFormat currency, required List<Expense> monthExpenses}) {
+    // Sort descending by date
+    final sorted = List<Expense>.from(monthExpenses)..sort((a, b) => b.date.compareTo(a.date));
+
+    // Group logs by Date
+    final Map<String, List<Expense>> groupedByDate = {};
+    for (final exp in sorted) {
+      final key = DateFormat('d MMM yyyy').format(exp.date);
+      groupedByDate.putIfAbsent(key, () => []).add(exp);
     }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-      children: expenses.map((e) => _buildWageLogCard(e, currency)).toList(),
+      children: [
+        // Month Selector Dropdown
+        _buildMonthSelector(),
+        const SizedBox(height: 14),
+
+        if (sorted.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: LabourColors.cardSurface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: LabourColors.border),
+            ),
+            alignment: Alignment.center,
+            child: const Text('No wage logs recorded for this month', style: TextStyle(fontSize: 13, color: LabourColors.secondaryText)),
+          )
+        else
+          ...groupedByDate.keys.map((dateKey) {
+            final entries = groupedByDate[dateKey]!;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    dateKey,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: LabourColors.secondaryText,
+                    ),
+                  ),
+                ),
+                ...entries.map((e) => _buildWageLogCard(e, currency)),
+              ],
+            );
+          }),
+      ],
     );
   }
 
   Widget _buildWageLogCard(Expense e, NumberFormat currency) {
     final info = WageLogInfo.parse(e.description, defaultWorker: widget.worker.fullName);
-    final type = LabourWorkType.findForTask(info.taskTitle);
     final isPaid = info.status.toLowerCase() == 'paid';
     final isOverdue = info.status.toLowerCase() == 'overdue';
 
@@ -677,7 +741,6 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: LabourColors.cardSurface,
         borderRadius: BorderRadius.circular(14),
@@ -689,67 +752,82 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
             context: context,
             taskTitle: info.taskTitle,
             workerName: widget.worker.fullName,
+            worker: widget.worker,
+            shiftName: info.shiftName,
             formattedDate: DateFormat('d MMM yyyy').format(e.date),
             amount: e.amount,
             status: info.status,
             onEdit: () => context.push('/labour/attendance', extra: e),
+            onMarkPaid: () => _markPaymentStatus(e, true),
+            onMarkPending: () => _markPaymentStatus(e, false),
             onToggleStatus: () => _togglePaymentStatus(e),
             onDelete: () => _deleteWageLog(e),
           );
         },
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: type.bgColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              alignment: Alignment.center,
-              child: Icon(type.icon, color: type.iconColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    info.taskTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    '${info.shiftCardDisplay} • ${DateFormat('d MMM yyyy').format(e.date)}',
-                    style: const TextStyle(fontSize: 11, color: LabourColors.secondaryText),
-                  ),
-                ],
-              ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  currency.format(e.amount),
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // Far Left: Worker Avatar
+              WorkerAvatar(worker: widget.worker, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Line 1: Task title on left, amount on right, chevron >
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            info.taskTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
+                          ),
+                        ),
+                        Text(
+                          currency.format(e.amount),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: LabourColors.primaryText),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.chevron_right_rounded, color: LabourColors.secondaryText, size: 18),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    // Line 2: Shift info
+                    Text(
+                      info.shiftCardDisplay,
+                      style: const TextStyle(fontSize: 11, color: LabourColors.secondaryText),
+                    ),
+                    const SizedBox(height: 4),
+                    // Line 3: Date on left, status pill on right
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          DateFormat('d MMM yyyy').format(e.date),
+                          style: const TextStyle(fontSize: 11, color: LabourColors.secondaryText),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            info.status,
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: statusBg,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    info.status,
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
-                  ),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
