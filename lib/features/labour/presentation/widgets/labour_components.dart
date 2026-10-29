@@ -851,3 +851,291 @@ void showLabourErrorFeedback(BuildContext context, {required String title, requi
     ),
   );
 }
+
+/// Modal Action Sheet when tapping a Wage Log item
+Future<void> showWageLogActionSheet({
+  required BuildContext context,
+  required String taskTitle,
+  required String workerName,
+  required String formattedDate,
+  required double amount,
+  required String status,
+  required VoidCallback onToggleStatus,
+  required VoidCallback onDelete,
+}) {
+  final isPaid = status.toLowerCase() == 'paid';
+  final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+  final type = LabourWorkType.findForTask(taskTitle);
+
+  return showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: LabourColors.cardSurface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    ),
+    builder: (ctx) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: LabourColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              // Header Card
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: LabourColors.background,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: type.bgColor,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Icon(type.icon, color: type.iconColor, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            taskTitle,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: LabourColors.primaryText,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$workerName • $formattedDate',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: LabourColors.secondaryText,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          currency.format(amount),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: LabourColors.primaryText,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isPaid ? LabourColors.softGreenSurface : LabourColors.softAmberSurface,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            status,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: isPaid ? LabourColors.forestGreen : const Color(0xFFD97706),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Action 1: Toggle Payment Status
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    onToggleStatus();
+                  },
+                  icon: Icon(
+                    isPaid ? Icons.access_time_rounded : Icons.check_circle_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                  label: Text(
+                    isPaid ? 'Mark as Pending' : 'Mark as Paid',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: isPaid ? const Color(0xFFD97706) : LabourColors.forestGreen,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // Action 2: Delete Wage Log
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    onDelete();
+                  },
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: LabourColors.error),
+                  label: const Text(
+                    'Delete Wage Log',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.error),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LabourColors.softRedSurface,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+/// Delete Wage Log Confirmation Dialog
+class DeleteWageLogDialog extends StatelessWidget {
+  final String taskTitle;
+  final String workerName;
+  final double amount;
+  final VoidCallback onConfirm;
+
+  const DeleteWageLogDialog({
+    super.key,
+    required this.taskTitle,
+    required this.workerName,
+    required this.amount,
+    required this.onConfirm,
+  });
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required String taskTitle,
+    required String workerName,
+    required double amount,
+    required VoidCallback onConfirm,
+  }) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => DeleteWageLogDialog(
+        taskTitle: taskTitle,
+        workerName: workerName,
+        amount: amount,
+        onConfirm: onConfirm,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor: LabourColors.cardSurface,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: LabourColors.softRedSurface,
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.delete_outline_rounded, color: LabourColors.error, size: 28),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Delete Wage Log?',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: LabourColors.primaryText,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Are you sure you want to delete this wage log of ${currency.format(amount)} for $workerName?\nThis will remove the wage record and corresponding expense.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: LabourColors.secondaryText,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: LabourColors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: const Text('Cancel', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context, true);
+                      onConfirm();
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: LabourColors.error,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

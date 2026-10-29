@@ -38,17 +38,32 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
     super.dispose();
   }
 
-  Future<void> _markAsPaid(Expense expense) async {
+  Future<void> _togglePaymentStatus(Expense expense) async {
     try {
       final db = ref.read(appDatabaseProvider);
-      final updatedDesc = expense.description
-          .replaceAll('(Pending)', '(Paid)')
-          .replaceAll('(Unpaid)', '(Paid)')
-          .replaceAll('(Overdue)', '(Paid)');
+      final desc = expense.description.toLowerCase();
+      final isCurrentlyPending = desc.contains('(pending)') ||
+          desc.contains('(unpaid)') ||
+          desc.contains('(overdue)') ||
+          expense.paymentMethod == 'Pending';
+
+      final String newPaymentMethod;
+      final String updatedDesc;
+
+      if (isCurrentlyPending) {
+        newPaymentMethod = 'Cash';
+        updatedDesc = expense.description
+            .replaceAll('(Pending)', '(Paid)')
+            .replaceAll('(Unpaid)', '(Paid)')
+            .replaceAll('(Overdue)', '(Paid)');
+      } else {
+        newPaymentMethod = 'Pending';
+        updatedDesc = expense.description.replaceAll('(Paid)', '(Pending)');
+      }
 
       await (db.update(db.expensesTable)..where((t) => t.id.equals(expense.id))).write(
         ExpensesTableCompanion(
-          paymentMethod: const Value('Cash'),
+          paymentMethod: Value(newPaymentMethod),
           description: Value(updatedDesc),
         ),
       );
@@ -57,8 +72,8 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
       if (mounted) {
         showLabourSuccessFeedback(
           context,
-          title: 'Marked as Paid',
-          subtitle: '₹${expense.amount.toStringAsFixed(0)} paid to ${widget.worker.fullName}',
+          title: isCurrentlyPending ? 'Marked as Paid' : 'Marked as Pending',
+          subtitle: '₹${expense.amount.toStringAsFixed(0)} for ${widget.worker.fullName} updated.',
         );
       }
     } catch (e) {
@@ -66,6 +81,76 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
         showLabourErrorFeedback(
           context,
           title: 'Update Failed',
+          subtitle: e.toString(),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteWageLog(Expense expense) async {
+    var title = expense.description;
+    if (title.toLowerCase().startsWith('labour:')) {
+      final parts = title.split('-');
+      if (parts.length > 1) {
+        title = parts.sublist(1).join('-').replaceAll(RegExp(r'\((Paid|Pending|Unpaid|Overdue)\)'), '').trim();
+      }
+    }
+
+    final confirmed = await DeleteWageLogDialog.show(
+      context,
+      taskTitle: title,
+      workerName: widget.worker.fullName,
+      amount: expense.amount,
+      onConfirm: () {},
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final db = ref.read(appDatabaseProvider);
+      await db.transaction(() async {
+        // 1. Delete from expensesTable
+        await (db.delete(db.expensesTable)..where((t) => t.id.equals(expense.id))).go();
+
+        // 2. Delete matching wage from wagesTable
+        final matchingWages = await (db.select(db.wagesTable)
+          ..where((t) => t.netPay.equals(expense.amount) &
+            t.paymentDate.year.equals(expense.date.year) &
+            t.paymentDate.month.equals(expense.date.month) &
+            t.paymentDate.day.equals(expense.date.day)))
+          .get();
+        for (final w in matchingWages) {
+          await (db.delete(db.wagesTable)..where((t) => t.id.equals(w.id))).go();
+        }
+
+        // 3. Delete matching attendance if linked
+        final matchingAttendance = await (db.select(db.attendanceTable)
+          ..where((t) => t.date.year.equals(expense.date.year) &
+            t.date.month.equals(expense.date.month) &
+            t.date.day.equals(expense.date.day)))
+          .get();
+        for (final a in matchingAttendance) {
+          if (a.remarks != null && expense.description.contains(a.remarks!)) {
+            await (db.delete(db.attendanceTable)..where((t) => t.id.equals(a.id))).go();
+          }
+        }
+      });
+
+      await ref.read(expenseNotifierProvider.notifier).loadExpenses();
+      await ref.read(labourNotifierProvider.notifier).loadWorkers();
+
+      if (mounted) {
+        showLabourSuccessFeedback(
+          context,
+          title: 'Wage Log Deleted',
+          subtitle: 'Removed wage log of ₹${expense.amount.toStringAsFixed(0)} for ${widget.worker.fullName}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showLabourErrorFeedback(
+          context,
+          title: 'Failed to Delete Wage Log',
           subtitle: e.toString(),
         );
       }
@@ -626,29 +711,18 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
         border: Border.all(color: LabourColors.border),
       ),
       child: InkWell(
-        onTap: isPending || isOverdue
-            ? () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    title: const Text('Update Payment Status', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-                    content: Text('Mark wage of ${currency.format(e.amount)} as Paid?'),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: LabourColors.forestGreen),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _markAsPaid(e);
-                        },
-                        child: const Text('Mark as Paid', style: TextStyle(color: Colors.white)),
-                      ),
-                    ],
-                  ),
-                );
-              }
-            : null,
+        onTap: () {
+          showWageLogActionSheet(
+            context: context,
+            taskTitle: title,
+            workerName: widget.worker.fullName,
+            formattedDate: DateFormat('d MMM yyyy').format(e.date),
+            amount: e.amount,
+            status: statusText,
+            onToggleStatus: () => _togglePaymentStatus(e),
+            onDelete: () => _deleteWageLog(e),
+          );
+        },
         child: Row(
           children: [
             Container(

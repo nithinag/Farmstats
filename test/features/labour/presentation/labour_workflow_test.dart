@@ -133,8 +133,14 @@ void main() {
       expect(find.text('Ramesh'), findsOneWidget);
       expect(find.text('+91 98765 43210'), findsOneWidget);
 
-      // Switch to Wage Logs tab
-      await tester.tap(find.text('Wage Logs'));
+      // Verify Banner is removed completely
+      expect(find.textContaining('Manage your farm workers'), findsNothing);
+
+      // Verify Topmost filter icon beside tabs
+      expect(find.byIcon(Icons.tune_rounded), findsWidgets);
+
+      // Verify swipe navigation: swipe left to Wage Logs
+      await tester.fling(find.text('Farm Workers (2)'), const Offset(-500, 0), 1000);
       await tester.pumpAndSettle();
 
       // Verify Wage Logs elements
@@ -145,6 +151,29 @@ void main() {
       expect(find.text('Silkworm Feeding & Cleaning'), findsOneWidget);
       expect(find.text('Paid'), findsWidgets);
       expect(find.text('Pending'), findsWidgets);
+
+      // Tap on wage log to open action sheet with delete option
+      await tester.tap(find.text('Silkworm Feeding & Cleaning').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Wage Log'), findsOneWidget);
+
+      // Tap Delete Wage Log to open confirmation dialog
+      await tester.tap(find.text('Delete Wage Log'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete Wage Log?'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Delete'), findsOneWidget);
+
+      // Cancel deletion
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Swipe right back to Workers
+      await tester.fling(find.text('Add Wage Log'), const Offset(500, 0), 1000);
+      await tester.pumpAndSettle();
+      expect(find.text('Farm Workers (2)'), findsOneWidget);
     });
 
     testWidgets('Screen 2: WorkerFormScreen validates Indian mobile phone number strictly', (tester) async {
