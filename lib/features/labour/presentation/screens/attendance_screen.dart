@@ -11,14 +11,21 @@ import '../../application/providers/labour_notifier.dart';
 import '../../application/providers/labour_state.dart';
 import '../../../batches/application/providers/batch_notifier.dart';
 import '../../../expenses/application/providers/expense_notifier.dart';
+import '../../../expenses/domain/entities/expense_entities.dart';
 import '../../../../data/providers/database_provider.dart';
 import '../../../../data/database/app_database.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   final String? initialBatchId;
   final String? initialWorkerId;
+  final Expense? existingExpense;
 
-  const AttendanceScreen({super.key, this.initialBatchId, this.initialWorkerId});
+  const AttendanceScreen({
+    super.key,
+    this.initialBatchId,
+    this.initialWorkerId,
+    this.existingExpense,
+  });
 
   @override
   ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -29,25 +36,43 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
   LabourWorker? _selectedWorker;
   String _selectedTask = 'Silkworm Feeding & Cleaning';
+  FarmShift _selectedShift = FarmShift.dayShift;
   DateTime _selectedDate = DateTime.now();
   String _status = 'Paid'; // 'Paid', 'Pending', 'Overdue'
   
-  late TextEditingController _hoursController;
   late TextEditingController _amountController;
   late TextEditingController _notesController;
   bool _isSaving = false;
+  bool _initializedFromExpense = false;
+
+  bool get isEditing => widget.existingExpense != null;
 
   @override
   void initState() {
     super.initState();
-    _hoursController = TextEditingController(text: '4');
     _amountController = TextEditingController(text: '500');
     _notesController = TextEditingController();
+
+    if (widget.existingExpense != null) {
+      final exp = widget.existingExpense!;
+      _selectedDate = exp.date;
+      _amountController.text = exp.amount.toStringAsFixed(0);
+      
+      final info = WageLogInfo.parse(exp.description);
+      _selectedShift = FarmShift.findByNameOrId(info.shiftName);
+      _selectedTask = info.taskTitle;
+      _status = info.status;
+
+      // Check for notes in description
+      if (exp.description.contains('Notes:')) {
+        final notesPart = exp.description.split('Notes:').last.trim();
+        _notesController.text = notesPart;
+      }
+    }
   }
 
   @override
   void dispose() {
-    _hoursController.dispose();
     _amountController.dispose();
     _notesController.dispose();
     super.dispose();
@@ -93,72 +118,132 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     try {
       final db = ref.read(appDatabaseProvider);
       final wageAmount = double.tryParse(_amountController.text.trim()) ?? _selectedWorker!.dailyWage;
-      final hours = double.tryParse(_hoursController.text.trim()) ?? 4.0;
-      final entryId = const Uuid().v4();
+      final hours = _selectedShift.defaultHours;
       final notes = _notesController.text.trim();
+      final shiftDesc = '${_selectedShift.name} • ${_selectedShift.timeRange}';
+      final statusTag = '($_status)';
+      final notesSuffix = notes.isNotEmpty ? ' | Notes: $notes' : '';
+      final expenseDescription = 'Labour: ${_selectedWorker!.fullName} | $shiftDesc | $_selectedTask $statusTag$notesSuffix';
+      final expensePaymentMethod = _status == 'Paid' ? 'Cash' : 'Pending';
 
-      await db.transaction(() async {
-        // 1. Attendance Record
-        await db.into(db.attendanceTable).insert(
-              AttendanceTableCompanion.insert(
-                id: entryId,
-                workerId: _selectedWorker!.id,
-                date: _selectedDate,
-                hoursWorked: Value(hours),
-                overtimeHours: const Value(0.0),
-                leaveStatus: 'none',
-                remarks: Value('$_selectedTask - $_status ${notes.isNotEmpty ? "($notes)" : ""}'),
-              ),
-              mode: InsertMode.replace,
-            );
+      if (isEditing) {
+        // Edit Mode: update existing records
+        final expId = widget.existingExpense!.id;
+        await db.transaction(() async {
+          // 1. Update expense
+          await (db.update(db.expensesTable)..where((t) => t.id.equals(expId))).write(
+            ExpensesTableCompanion(
+              amount: Value(wageAmount),
+              date: Value(_selectedDate),
+              paymentMethod: Value(expensePaymentMethod),
+              description: Value(expenseDescription),
+            ),
+          );
 
-        // 2. Assignment Record
-        await db.into(db.assignmentsTable).insert(
-              AssignmentsTableCompanion.insert(
-                id: const Uuid().v4(),
-                workerId: _selectedWorker!.id,
-                batchId: Value(widget.initialBatchId),
-                task: _selectedTask,
-                startTime: _selectedDate,
-                durationHours: Value(hours),
-                status: 'completed',
-              ),
-              mode: InsertMode.replace,
-            );
+          // 2. Update matching wage record if exists
+          final matchingWages = await (db.select(db.wagesTable)
+            ..where((t) => t.workerId.equals(_selectedWorker!.id) &
+              t.paymentDate.year.equals(widget.existingExpense!.date.year) &
+              t.paymentDate.month.equals(widget.existingExpense!.date.month) &
+              t.paymentDate.day.equals(widget.existingExpense!.date.day)))
+            .get();
+          if (matchingWages.isNotEmpty) {
+            for (final w in matchingWages) {
+              await (db.update(db.wagesTable)..where((t) => t.id.equals(w.id))).write(
+                WagesTableCompanion(
+                  baseWage: Value(wageAmount),
+                  netPay: Value(wageAmount),
+                  paymentDate: Value(_selectedDate),
+                  paymentMethod: Value(expensePaymentMethod),
+                  referenceNotes: Value('Shift: $shiftDesc | Task: $_selectedTask | Status: $_status$notesSuffix'),
+                ),
+              );
+            }
+          }
 
-        // 3. Wage Record
-        await db.into(db.wagesTable).insert(
-              WagesTableCompanion.insert(
-                id: const Uuid().v4(),
-                workerId: _selectedWorker!.id,
-                baseWage: wageAmount,
-                overtimePay: 0.0,
-                bonuses: 0.0,
-                deductions: 0.0,
-                netPay: wageAmount,
-                paymentDate: _selectedDate,
-                paymentMethod: _status == 'Paid' ? 'Cash' : 'Pending',
-                referenceNotes: Value('Task: $_selectedTask | Status: $_status ${notes.isNotEmpty ? "| Notes: $notes" : ""}'),
-              ),
-              mode: InsertMode.replace,
-            );
+          // 3. Update matching attendance
+          final matchingAttendance = await (db.select(db.attendanceTable)
+            ..where((t) => t.workerId.equals(_selectedWorker!.id) &
+              t.date.year.equals(widget.existingExpense!.date.year) &
+              t.date.month.equals(widget.existingExpense!.date.month) &
+              t.date.day.equals(widget.existingExpense!.date.day)))
+            .get();
+          if (matchingAttendance.isNotEmpty) {
+            for (final a in matchingAttendance) {
+              await (db.update(db.attendanceTable)..where((t) => t.id.equals(a.id))).write(
+                AttendanceTableCompanion(
+                  date: Value(_selectedDate),
+                  hoursWorked: Value(hours),
+                  remarks: Value('$_selectedTask - $_status$notesSuffix'),
+                ),
+              );
+            }
+          }
+        });
+      } else {
+        // Add Mode: insert new records
+        final entryId = const Uuid().v4();
+        await db.transaction(() async {
+          // 1. Attendance Record
+          await db.into(db.attendanceTable).insert(
+                AttendanceTableCompanion.insert(
+                  id: entryId,
+                  workerId: _selectedWorker!.id,
+                  date: _selectedDate,
+                  hoursWorked: Value(hours),
+                  overtimeHours: const Value(0.0),
+                  leaveStatus: 'none',
+                  remarks: Value('$_selectedTask - $_status$notesSuffix'),
+                ),
+                mode: InsertMode.replace,
+              );
 
-        // 4. Labour Expense Record
-        final expensePaymentMethod = _status == 'Paid' ? 'Cash' : 'Pending';
-        final statusTag = '($_status)';
-        await db.into(db.expensesTable).insert(
-              ExpensesTableCompanion.insert(
-                id: const Uuid().v4(),
-                amount: wageAmount,
-                date: _selectedDate,
-                categoryId: 'c4', // Labour category ID
-                paymentMethod: expensePaymentMethod,
-                description: 'Labour: ${_selectedWorker!.fullName} - $_selectedTask $statusTag',
-                batchId: Value(widget.initialBatchId),
-              ),
-              mode: InsertMode.replace,
-            );
-      });
+          // 2. Assignment Record
+          await db.into(db.assignmentsTable).insert(
+                AssignmentsTableCompanion.insert(
+                  id: const Uuid().v4(),
+                  workerId: _selectedWorker!.id,
+                  batchId: Value(widget.initialBatchId),
+                  task: _selectedTask,
+                  startTime: _selectedDate,
+                  durationHours: Value(hours),
+                  status: 'completed',
+                ),
+                mode: InsertMode.replace,
+              );
+
+          // 3. Wage Record
+          await db.into(db.wagesTable).insert(
+                WagesTableCompanion.insert(
+                  id: const Uuid().v4(),
+                  workerId: _selectedWorker!.id,
+                  baseWage: wageAmount,
+                  overtimePay: 0.0,
+                  bonuses: 0.0,
+                  deductions: 0.0,
+                  netPay: wageAmount,
+                  paymentDate: _selectedDate,
+                  paymentMethod: expensePaymentMethod,
+                  referenceNotes: Value('Shift: $shiftDesc | Task: $_selectedTask | Status: $_status$notesSuffix'),
+                ),
+                mode: InsertMode.replace,
+              );
+
+          // 4. Labour Expense Record
+          await db.into(db.expensesTable).insert(
+                ExpensesTableCompanion.insert(
+                  id: const Uuid().v4(),
+                  amount: wageAmount,
+                  date: _selectedDate,
+                  categoryId: 'c4', // Labour category ID
+                  paymentMethod: expensePaymentMethod,
+                  description: expenseDescription,
+                  batchId: Value(widget.initialBatchId),
+                ),
+                mode: InsertMode.replace,
+              );
+        });
+      }
 
       // Refresh providers
       await ref.read(expenseNotifierProvider.notifier).loadExpenses();
@@ -168,7 +253,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (mounted) {
         showLabourSuccessFeedback(
           context,
-          title: 'Wage log added Successfully',
+          title: isEditing ? 'Wage Log Updated' : 'Wage log added successfully',
           subtitle: '₹${wageAmount.toStringAsFixed(0)} ${_status == "Paid" ? "paid to" : "pending for"} ${_selectedWorker!.fullName}',
         );
         if (Navigator.maybeOf(context)?.canPop() == true) {
@@ -181,7 +266,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (mounted) {
         showLabourErrorFeedback(
           context,
-          title: 'Failed to Save Wage Log',
+          title: isEditing ? 'Failed to Update Wage Log' : 'Failed to save wage log',
           subtitle: e.toString(),
         );
       }
@@ -198,16 +283,25 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       _ => <LabourWorker>[],
     };
 
-    // Auto-select if initialWorkerId provided
-    if (_selectedWorker == null && widget.initialWorkerId != null && allWorkers.isNotEmpty) {
-      _selectedWorker = allWorkers.firstWhere(
-        (w) => w.id == widget.initialWorkerId,
-        orElse: () => allWorkers.first,
-      );
-      _amountController.text = _selectedWorker!.dailyWage.toStringAsFixed(0);
-    } else if (_selectedWorker == null && allWorkers.isNotEmpty) {
-      _selectedWorker = allWorkers.first;
-      _amountController.text = _selectedWorker!.dailyWage.toStringAsFixed(0);
+    // Auto-select worker if editing or initialWorkerId provided
+    if (!_initializedFromExpense && allWorkers.isNotEmpty) {
+      _initializedFromExpense = true;
+      if (widget.existingExpense != null) {
+        final info = WageLogInfo.parse(widget.existingExpense!.description);
+        _selectedWorker = allWorkers.firstWhere(
+          (w) => w.fullName.toLowerCase().trim() == info.workerName.toLowerCase().trim(),
+          orElse: () => allWorkers.first,
+        );
+      } else if (widget.initialWorkerId != null) {
+        _selectedWorker = allWorkers.firstWhere(
+          (w) => w.id == widget.initialWorkerId,
+          orElse: () => allWorkers.first,
+        );
+        _amountController.text = _selectedWorker!.dailyWage.toStringAsFixed(0);
+      } else {
+        _selectedWorker = allWorkers.first;
+        _amountController.text = _selectedWorker!.dailyWage.toStringAsFixed(0);
+      }
     }
 
     final currentWorkType = LabourWorkType.findForTask(_selectedTask);
@@ -227,15 +321,21 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             }
           },
         ),
-        title: const Text(
-          'Add Wage Log',
-          style: TextStyle(
+        title: Text(
+          isEditing ? 'Edit Wage Log' : 'Add Wage Log',
+          style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: LabourColors.primaryText,
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: LabourColors.primaryText),
+            onPressed: () {},
+          ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -260,7 +360,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           if (chosen != null) {
                             setState(() {
                               _selectedWorker = chosen;
-                              _amountController.text = chosen.dailyWage.toStringAsFixed(0);
+                              if (!isEditing) {
+                                _amountController.text = chosen.dailyWage.toStringAsFixed(0);
+                              }
                             });
                           }
                         },
@@ -315,7 +417,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                         style: TextStyle(fontSize: 14, color: LabourColors.mutedText),
                                       ),
                               ),
-                              const Icon(Icons.chevron_right_rounded, color: LabourColors.secondaryText),
+                              const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
                             ],
                           ),
                         ),
@@ -362,14 +464,73 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                   ),
                                 ),
                               ),
-                              const Icon(Icons.chevron_right_rounded, color: LabourColors.secondaryText),
+                              const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 16),
 
-                      // 3. Date
+                      // 3. Shift (Morning Shift vs Day Shift)
+                      _buildFieldLabel('Shift *'),
+                      InkWell(
+                        onTap: () async {
+                          final chosen = await SelectShiftSheet.show(context, _selectedShift);
+                          if (chosen != null) {
+                            setState(() => _selectedShift = chosen);
+                          }
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: LabourColors.cardSurface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: LabourColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: _selectedShift.bgColor,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                alignment: Alignment.center,
+                                child: Icon(_selectedShift.icon, color: _selectedShift.iconColor, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _selectedShift.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: LabourColors.primaryText,
+                                      ),
+                                    ),
+                                    Text(
+                                      _selectedShift.timeRange,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: LabourColors.secondaryText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 4. Date
                       _buildFieldLabel('Date *'),
                       InkWell(
                         onTap: _pickDate,
@@ -394,22 +555,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                 ),
                               ),
                               const Spacer(),
-                              const Icon(Icons.chevron_right_rounded, color: LabourColors.secondaryText),
+                              const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 4. Hours
-                      _buildFieldLabel('Hours (Optional)'),
-                      TextFormField(
-                        controller: _hoursController,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        style: const TextStyle(fontSize: 14, color: LabourColors.primaryText),
-                        decoration: _inputDecoration(
-                          hint: '4',
-                          prefixIcon: const Icon(Icons.access_time_rounded, color: LabourColors.secondaryText, size: 20),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -419,7 +567,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       TextFormField(
                         controller: _amountController,
                         keyboardType: TextInputType.number,
-                        style: const TextStyle(fontSize: 14, color: LabourColors.primaryText),
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
                         decoration: _inputDecoration(
                           hint: '500',
                           prefixIcon: const Padding(
@@ -447,8 +595,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 6. Status Chips
-                      _buildFieldLabel('Status'),
+                      // 6. Payment Status Chips
+                      _buildFieldLabel('Payment Status *'),
                       Row(
                         children: [
                           _buildStatusChip(
@@ -475,7 +623,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 7. Notes
+                      // 7. Notes (Optional)
                       _buildFieldLabel('Notes (Optional)'),
                       TextFormField(
                         controller: _notesController,
@@ -501,7 +649,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
             ),
 
-            // Bottom Actions (Cancel & Save Log)
+            // Bottom Actions (Cancel & Save Log / Update Log)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: const BoxDecoration(
@@ -555,9 +703,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               height: 20,
                               child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                             )
-                          : const Text(
-                              'Save Log',
-                              style: TextStyle(
+                          : Text(
+                              isEditing ? 'Update Log' : 'Save Log',
+                              style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,

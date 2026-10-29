@@ -100,7 +100,26 @@ final GoRouter appRouter = GoRouter(
         ),
         GoRoute(
           path: 'attendance',
-          builder: (context, state) => const AttendanceScreen(),
+          builder: (context, state) {
+            String? batchId;
+            String? workerId;
+            Expense? expense;
+            if (state.extra is Expense) {
+              expense = state.extra as Expense;
+            } else if (state.extra is String) {
+              batchId = state.extra as String;
+            } else if (state.extra is Map<String, dynamic>) {
+              final map = state.extra as Map<String, dynamic>;
+              batchId = map['batchId'] as String?;
+              workerId = map['workerId'] as String?;
+              expense = map['expense'] as Expense?;
+            }
+            return AttendanceScreen(
+              initialBatchId: batchId,
+              initialWorkerId: workerId,
+              existingExpense: expense,
+            );
+          },
         ),
         GoRoute(
           path: ':id',

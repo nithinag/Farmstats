@@ -112,3 +112,147 @@ class LabourWorkType {
     return sericultureTypes[0];
   }
 }
+
+class FarmShift {
+  final String id;
+  final String name;
+  final String startTime;
+  final String endTime;
+  final double defaultHours;
+  final IconData icon;
+  final Color iconColor;
+  final Color bgColor;
+
+  const FarmShift({
+    required this.id,
+    required this.name,
+    required this.startTime,
+    required this.endTime,
+    required this.defaultHours,
+    this.icon = Icons.wb_sunny_rounded,
+    this.iconColor = const Color(0xFFF59E0B),
+    this.bgColor = const Color(0xFFFEF3C7),
+  });
+
+  String get timeRange => '$startTime - $endTime';
+  String get displayLabel => '$name ($timeRange)';
+  String get cardDisplay => '$name • $timeRange';
+
+  static const FarmShift earlyMorning = FarmShift(
+    id: 'early_morning',
+    name: 'Early Morning Shift',
+    startTime: '6:00 AM',
+    endTime: '9:00 AM',
+    defaultHours: 3.0,
+    icon: Icons.wb_twilight_rounded,
+    iconColor: Color(0xFFEAB308),
+    bgColor: Color(0xFFFEF9C3),
+  );
+
+  static const FarmShift dayShift = FarmShift(
+    id: 'day',
+    name: 'Day Shift',
+    startTime: '10:00 AM',
+    endTime: '6:00 PM',
+    defaultHours: 8.0,
+    icon: Icons.wb_sunny_rounded,
+    iconColor: Color(0xFFF97316),
+    bgColor: Color(0xFFFFEDD5),
+  );
+
+  static const List<FarmShift> defaultShifts = [
+    earlyMorning,
+    dayShift,
+  ];
+
+  static FarmShift findByNameOrId(String? query) {
+    if (query == null || query.isEmpty) return dayShift;
+    final lower = query.toLowerCase();
+    if (lower.contains('morning') || lower.contains('early') || lower.contains('6:00')) {
+      return earlyMorning;
+    }
+    return dayShift;
+  }
+}
+
+class WageLogInfo {
+  final String workerName;
+  final String shiftName;
+  final String shiftTimeRange;
+  final String taskTitle;
+  final String status;
+
+  WageLogInfo({
+    required this.workerName,
+    required this.shiftName,
+    required this.shiftTimeRange,
+    required this.taskTitle,
+    required this.status,
+  });
+
+  String get shiftCardDisplay => '$shiftName • $shiftTimeRange';
+
+  static WageLogInfo parse(String description, {String defaultWorker = 'Worker'}) {
+    String raw = description.trim();
+    if (raw.toLowerCase().startsWith('labour:')) {
+      raw = raw.substring(7).trim();
+    }
+
+    String status = 'Paid';
+    final statusMatch = RegExp(r'\((Paid|Pending|Unpaid|Overdue)\)', caseSensitive: false).firstMatch(raw);
+    if (statusMatch != null) {
+      status = statusMatch.group(1)!;
+      raw = raw.replaceAll(statusMatch.group(0)!, '').trim();
+    }
+
+    String worker = defaultWorker;
+    String shiftName = 'Day Shift';
+    String shiftTime = '10:00 AM - 6:00 PM';
+    String task = 'Silkworm Feeding & Cleaning';
+
+    if (raw.contains('|')) {
+      final parts = raw.split('|').map((s) => s.trim()).toList();
+      if (parts.isNotEmpty && parts[0].isNotEmpty) {
+        worker = parts[0];
+      }
+      if (parts.length > 1) {
+        final shiftPart = parts[1];
+        if (shiftPart.contains('•')) {
+          final sSplit = shiftPart.split('•');
+          shiftName = sSplit[0].trim();
+          shiftTime = sSplit.sublist(1).join('•').trim();
+        } else if (shiftPart.contains('-')) {
+          final sSplit = shiftPart.split('-');
+          shiftName = sSplit[0].trim();
+          shiftTime = sSplit.sublist(1).join('-').trim();
+        } else {
+          shiftName = shiftPart;
+        }
+      }
+      if (parts.length > 2) {
+        task = parts.sublist(2).join(' | ').trim();
+      }
+    } else if (raw.contains('-')) {
+      final parts = raw.split('-').map((s) => s.trim()).toList();
+      if (parts.isNotEmpty && parts[0].isNotEmpty) {
+        worker = parts[0];
+      }
+      if (parts.length > 1) {
+        task = parts.sublist(1).join(' - ').trim();
+      }
+    } else if (raw.isNotEmpty) {
+      worker = raw;
+    }
+
+    if (status.toLowerCase() == 'unpaid') status = 'Pending';
+    status = status.isEmpty ? 'Paid' : status[0].toUpperCase() + status.substring(1).toLowerCase();
+
+    return WageLogInfo(
+      workerName: worker,
+      shiftName: shiftName,
+      shiftTimeRange: shiftTime,
+      taskTitle: task,
+      status: status,
+    );
+  }
+}

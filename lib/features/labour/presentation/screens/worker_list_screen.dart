@@ -26,9 +26,10 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
   final TextEditingController _workerSearchController = TextEditingController();
   
   // Wage Logs filtering state
-  DateTime? _filterMonth;
+  DateTime _wageLogMonth = DateTime.now();
   String _wageLogStatusFilter = 'All'; // 'All', 'Paid', 'Pending'
   String? _filterWorkerId;
+  String? _filterWorkType;
   String _workerSearchQuery = '';
 
   @override
@@ -254,7 +255,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     final animValue = _tabController.animation?.value ?? _tabController.index.toDouble();
     final isWorkersSelected = animValue < 0.5;
 
-    final isFiltered = _filterWorkerId != null || _wageLogStatusFilter != 'All' || _filterMonth != null;
+    final isFiltered = _filterWorkerId != null || _wageLogStatusFilter != 'All' || _filterWorkType != null;
 
     return Scaffold(
       backgroundColor: LabourColors.background,
@@ -294,66 +295,38 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
       body: SafeArea(
         child: Column(
           children: [
-            // Top Row: [ Workers | Wage Logs ] Pill Tabs + Topmost-Right Filter Tag Button
+            // Top Row: Full-width [ Workers | Wage Logs ] Pill Tabs
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: LabourColors.cardSurface,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: LabourColors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _buildTopPillTab(
-                              title: 'Workers',
-                              isSelected: isWorkersSelected,
-                              onTap: () {
-                                _tabController.animateTo(0);
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            child: _buildTopPillTab(
-                              title: 'Wage Logs',
-                              isSelected: !isWorkersSelected,
-                              onTap: () {
-                                _tabController.animateTo(1);
-                              },
-                            ),
-                          ),
-                        ],
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: LabourColors.cardSurface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _buildTopPillTab(
+                        title: 'Workers',
+                        isSelected: isWorkersSelected,
+                        onTap: () {
+                          _tabController.animateTo(0);
+                        },
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Filter Tag Button beside Workers & Wage Logs
-                  Container(
-                    height: 48,
-                    width: 48,
-                    decoration: BoxDecoration(
-                      color: isFiltered ? LabourColors.softGreenSurface : LabourColors.cardSurface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: isFiltered ? LabourColors.forestGreen : LabourColors.border,
+                    Expanded(
+                      child: _buildTopPillTab(
+                        title: 'Wage Logs',
+                        isSelected: !isWorkersSelected,
+                        onTap: () {
+                          _tabController.animateTo(1);
+                        },
                       ),
                     ),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.tune_rounded,
-                        color: isFiltered ? LabourColors.forestGreen : LabourColors.secondaryText,
-                        size: 20,
-                      ),
-                      tooltip: 'Filter Wage Logs',
-                      onPressed: () => _showWageLogFilterSheet(activeWorkers),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
 
@@ -378,6 +351,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
                     currency: currency,
                     activeWorkers: activeWorkers,
                     labourExpenses: labourExpenses,
+                    isFiltered: isFiltered,
                   ),
                 ],
               ),
@@ -398,7 +372,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? LabourColors.softGreenSurface : Colors.transparent,
+          color: isSelected ? LabourColors.forestGreen : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
         ),
         alignment: Alignment.center,
@@ -407,7 +381,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
           style: TextStyle(
             fontSize: 14,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? LabourColors.forestGreen : LabourColors.secondaryText,
+            color: isSelected ? Colors.white : LabourColors.secondaryText,
           ),
         ),
       ),
@@ -599,7 +573,7 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
               ElevatedButton.icon(
                 onPressed: () => context.push('/labour/add'),
                 icon: const Icon(Icons.add, size: 16, color: Colors.white),
-                label: const Text('Add', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                label: const Text('Add Worker', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: LabourColors.forestGreen,
                   foregroundColor: Colors.white,
@@ -723,6 +697,12 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
                             ),
                           ],
                         ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: LabourColors.secondaryText,
+                          size: 20,
+                        ),
                       ],
                     ),
                   ),
@@ -735,21 +715,18 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
   }
 
   // -------------------------------------------------------------
-  // SCREEN 4: WAGE LOGS LIST (Calendar bar below tabs removed)
+  // SCREEN 4: WAGE LOGS LIST
   // -------------------------------------------------------------
   Widget _buildWageLogsTab({
     required NumberFormat currency,
     required List<LabourWorker> activeWorkers,
     required List<Expense> labourExpenses,
+    required bool isFiltered,
   }) {
-    var filtered = labourExpenses;
-
-    // Filter by selected month if set in filter
-    if (_filterMonth != null) {
-      filtered = filtered.where((e) {
-        return e.date.year == _filterMonth!.year && e.date.month == _filterMonth!.month;
-      }).toList();
-    }
+    // Filter by selected month
+    var filtered = labourExpenses.where((e) {
+      return e.date.year == _wageLogMonth.year && e.date.month == _wageLogMonth.month;
+    }).toList();
 
     // Filter by worker if set
     if (_filterWorkerId != null) {
@@ -759,6 +736,14 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
       );
       filtered = filtered.where((e) {
         return e.description.toLowerCase().contains(worker.fullName.toLowerCase());
+      }).toList();
+    }
+
+    // Filter by work type if set
+    if (_filterWorkType != null) {
+      filtered = filtered.where((e) {
+        final info = WageLogInfo.parse(e.description);
+        return info.taskTitle.toLowerCase() == _filterWorkType!.toLowerCase();
       }).toList();
     }
 
@@ -793,9 +778,84 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
 
     return Column(
       children: [
-        // Status Filter Chips Row (Calendar navigation bar below tabs removed as requested)
+        // Month Navigation Row with Filter Tag Button (Image 4)
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
+          child: Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: LabourColors.cardSurface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: LabourColors.border),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left_rounded, color: LabourColors.primaryText, size: 22),
+                        onPressed: () {
+                          setState(() {
+                            _wageLogMonth = DateTime(_wageLogMonth.year, _wageLogMonth.month - 1);
+                          });
+                        },
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.calendar_today_outlined, size: 16, color: LabourColors.forestGreen),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormat('MMMM yyyy').format(_wageLogMonth),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: LabourColors.primaryText,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right_rounded, color: LabourColors.primaryText, size: 22),
+                        onPressed: () {
+                          setState(() {
+                            _wageLogMonth = DateTime(_wageLogMonth.year, _wageLogMonth.month + 1);
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Container(
+                height: 48,
+                width: 48,
+                decoration: BoxDecoration(
+                  color: isFiltered ? LabourColors.softGreenSurface : LabourColors.cardSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isFiltered ? LabourColors.forestGreen : LabourColors.border,
+                  ),
+                ),
+                child: IconButton(
+                  icon: Icon(
+                    Icons.tune_rounded,
+                    color: isFiltered ? LabourColors.forestGreen : LabourColors.secondaryText,
+                    size: 20,
+                  ),
+                  tooltip: 'Filter Wage Logs',
+                  onPressed: () => _showWageLogFilterSheet(activeWorkers),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Status Filter Chips Row
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 6),
           child: Row(
             children: [
               _buildWageLogFilterChip(
@@ -816,25 +876,12 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
           ),
         ),
 
-        // Active Filter Chips indicator if month or worker filter is active
-        if (_filterMonth != null || _filterWorkerId != null)
+        // Active Filter Chips indicator if worker or workType filter is active
+        if (_filterWorkerId != null || _filterWorkType != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
             child: Row(
               children: [
-                if (_filterMonth != null) ...[
-                  Chip(
-                    backgroundColor: LabourColors.softGreenSurface,
-                    label: Text(
-                      DateFormat('MMMM yyyy').format(_filterMonth!),
-                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: LabourColors.forestGreen),
-                    ),
-                    deleteIcon: const Icon(Icons.close, size: 14, color: LabourColors.forestGreen),
-                    onDeleted: () => setState(() => _filterMonth = null),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                  ),
-                  const SizedBox(width: 6),
-                ],
                 if (_filterWorkerId != null) ...[
                   Chip(
                     backgroundColor: LabourColors.softGreenSurface,
@@ -846,11 +893,24 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
                     onDeleted: () => setState(() => _filterWorkerId = null),
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                   ),
+                  const SizedBox(width: 6),
+                ],
+                if (_filterWorkType != null) ...[
+                  Chip(
+                    backgroundColor: LabourColors.softGreenSurface,
+                    label: Text(
+                      _filterWorkType!,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: LabourColors.forestGreen),
+                    ),
+                    deleteIcon: const Icon(Icons.close, size: 14, color: LabourColors.forestGreen),
+                    onDeleted: () => setState(() => _filterWorkType = null),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
                 ],
               ],
             ),
           ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
 
         // Chronological Wage Logs List
         Expanded(
@@ -954,36 +1014,19 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
     );
   }
 
+  /// Worker-First Wage Log Card Hierarchy (Image 4 & Section 3.D)
   Widget _buildWageLogCard(Expense e, NumberFormat currency) {
-    final type = LabourWorkType.findForTask(e.description);
-    final desc = e.description.toLowerCase();
-    final isPending = desc.contains('(pending)') ||
-        desc.contains('(unpaid)') ||
-        e.paymentMethod == 'Pending';
-    final isOverdue = desc.contains('(overdue)');
+    final info = WageLogInfo.parse(e.description);
+    final type = LabourWorkType.findForTask(info.taskTitle);
+    final isPaid = info.status.toLowerCase() == 'paid';
+    final isOverdue = info.status.toLowerCase() == 'overdue';
 
-    final statusText = isOverdue ? 'Overdue' : (isPending ? 'Pending' : 'Paid');
     final statusBg = isOverdue
         ? LabourColors.softRedSurface
-        : (isPending ? LabourColors.softAmberSurface : LabourColors.softGreenSurface);
+        : (isPaid ? LabourColors.softGreenSurface : LabourColors.softAmberSurface);
     final statusColor = isOverdue
         ? LabourColors.error
-        : (isPending ? const Color(0xFFD97706) : LabourColors.forestGreen);
-
-    // Parse worker name & task from description
-    String workerName = 'Worker';
-    String taskTitle = e.description;
-
-    if (e.description.startsWith('Labour:')) {
-      final afterPrefix = e.description.substring(7).trim();
-      final parts = afterPrefix.split('-');
-      if (parts.isNotEmpty) {
-        workerName = parts[0].trim();
-      }
-      if (parts.length > 1) {
-        taskTitle = parts.sublist(1).join('-').replaceAll(RegExp(r'\((Paid|Pending|Unpaid|Overdue)\)'), '').trim();
-      }
-    }
+        : (isPaid ? LabourColors.forestGreen : const Color(0xFFD97706));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -994,14 +1037,15 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
       ),
       child: InkWell(
         onTap: () {
-          // Open Wage Log Action Sheet: allows marking as Paid/Pending AND Deleting!
+          // Open Wage Log Action Sheet: allows Editing, marking as Paid/Pending, and Deleting
           showWageLogActionSheet(
             context: context,
-            taskTitle: taskTitle,
-            workerName: workerName,
+            taskTitle: info.taskTitle,
+            workerName: info.workerName,
             formattedDate: DateFormat('d MMM yyyy').format(e.date),
             amount: e.amount,
-            status: statusText,
+            status: info.status,
+            onEdit: () => context.push('/labour/attendance', extra: e),
             onToggleStatus: () => _toggleExpensePaymentStatus(e),
             onDelete: () => _deleteWageLog(e),
           );
@@ -1010,56 +1054,95 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Far Left: Work type icon in soft circular/rounded container
               Container(
-                width: 38,
-                height: 38,
+                width: 42,
+                height: 42,
                 decoration: BoxDecoration(
                   color: type.bgColor,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
-                child: Icon(type.icon, color: type.iconColor, size: 20),
+                child: Icon(type.icon, color: type.iconColor, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      taskTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                    // Line 1: Worker Name on Left, Amount on Right
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            info.workerName,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: LabourColors.primaryText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          currency.format(e.amount),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: LabourColors.primaryText,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 2),
+                    // Line 2: Shift info (e.g. Day Shift • 10:00 AM - 6:00 PM)
                     Text(
-                      '$workerName • 4 hrs',
-                      style: const TextStyle(fontSize: 12, color: LabourColors.secondaryText),
+                      info.shiftCardDisplay,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: LabourColors.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    // Line 3: Work Type on Left, Status Pill on Right
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            info.taskTitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: LabourColors.secondaryText,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: statusBg,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            info.status,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    currency.format(e.amount),
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: statusBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      statusText,
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
@@ -1071,14 +1154,16 @@ class _WorkerListScreenState extends ConsumerState<WorkerListScreen> with Single
   void _showWageLogFilterSheet(List<LabourWorker> activeWorkers) {
     FilterWageLogsSheet.show(
       context,
-      initialMonth: _filterMonth ?? DateTime.now(),
+      initialMonth: _wageLogMonth,
       workers: activeWorkers,
       currentWorkerId: _filterWorkerId,
+      currentWorkType: _filterWorkType,
       currentStatus: _wageLogStatusFilter,
-      onApply: (month, workerId, status) {
+      onApply: (month, workerId, workType, status) {
         setState(() {
-          _filterMonth = month;
+          _wageLogMonth = month;
           _filterWorkerId = workerId;
+          _filterWorkType = workType;
           _wageLogStatusFilter = status;
         });
       },

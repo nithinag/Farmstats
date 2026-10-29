@@ -71,10 +71,10 @@ void main() {
     ),
     LabourWorker(
       id: 'w2',
-      fullName: 'Ramesh',
-      phoneNumber: '+91 98765 43210',
+      fullName: 'Samantha',
+      phoneNumber: '+91 76760 76579',
       role: WorkerRole.cleaner,
-      dailyWage: 600,
+      dailyWage: 500,
       joiningDate: DateTime(2026, 1, 1),
       status: WorkerStatus.active,
     ),
@@ -88,19 +88,19 @@ void main() {
       date: now,
       category: const ExpenseCategory(id: 'c4', name: 'Labour Wages', colorCode: '#2E7D32', iconName: 'people'),
       paymentMethod: 'Cash',
-      description: 'Labour: Nithin - Silkworm Feeding & Cleaning (Paid)',
+      description: 'Labour: Nithin | Day Shift • 10:00 AM - 6:00 PM | Silkworm Feeding & Cleaning (Paid)',
     ),
     Expense(
       id: 'e2',
-      amount: 600,
+      amount: 500,
       date: now,
       category: const ExpenseCategory(id: 'c4', name: 'Labour Wages', colorCode: '#2E7D32', iconName: 'people'),
       paymentMethod: 'Pending',
-      description: 'Labour: Ramesh - House Cleaning (Pending)',
+      description: 'Labour: Samantha | Early Morning Shift • 6:00 AM - 9:00 AM | Mulberry Field Work (Pending)',
     ),
   ];
 
-  group('Labour & Wages Production-Ready UI Tests', () {
+  group('Labour & Wages Production-Grade UI Tests', () {
     testWidgets('Screen 1 & 4: WorkerListScreen renders overview and wage logs correctly', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
@@ -128,16 +128,14 @@ void main() {
 
       // Workers list
       expect(find.text('Farm Workers (2)'), findsOneWidget);
+      expect(find.text('Add Worker'), findsOneWidget);
       expect(find.text('Nithin'), findsOneWidget);
       expect(find.text('+91 74186 61938'), findsOneWidget);
-      expect(find.text('Ramesh'), findsOneWidget);
-      expect(find.text('+91 98765 43210'), findsOneWidget);
+      expect(find.text('Samantha'), findsOneWidget);
+      expect(find.text('+91 76760 76579'), findsOneWidget);
 
       // Verify Banner is removed completely
       expect(find.textContaining('Manage your farm workers'), findsNothing);
-
-      // Verify Topmost filter icon beside tabs
-      expect(find.byIcon(Icons.tune_rounded), findsWidgets);
 
       // Verify swipe navigation: swipe left to Wage Logs
       await tester.fling(find.text('Farm Workers (2)'), const Offset(-500, 0), 1000);
@@ -148,14 +146,18 @@ void main() {
       expect(find.textContaining('Paid ('), findsOneWidget);
       expect(find.textContaining('Pending ('), findsOneWidget);
       expect(find.text('Add Wage Log'), findsOneWidget);
+
+      // Worker-first card hierarchy: worker names and shift displays
       expect(find.text('Silkworm Feeding & Cleaning'), findsOneWidget);
+      expect(find.text('Mulberry Field Work'), findsOneWidget);
       expect(find.text('Paid'), findsWidgets);
       expect(find.text('Pending'), findsWidgets);
 
-      // Tap on wage log to open action sheet with delete option
+      // Tap on wage log to open action sheet with edit, mark status, and delete options
       await tester.tap(find.text('Silkworm Feeding & Cleaning').first);
       await tester.pumpAndSettle();
 
+      expect(find.text('Edit Wage Log'), findsOneWidget);
       expect(find.text('Delete Wage Log'), findsOneWidget);
 
       // Tap Delete Wage Log to open confirmation dialog
@@ -163,6 +165,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Delete Wage Log?'), findsOneWidget);
+      expect(find.textContaining('permanently delete this wage log'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
 
@@ -226,7 +229,7 @@ void main() {
       expect(find.text('Indian mobile number must be exactly 10 digits'), findsNothing);
     });
 
-    testWidgets('Screen 3: WorkerDetailsScreen displays stats and delete confirmation', (tester) async {
+    testWidgets('Screen 3: WorkerDetailsScreen has 2 tabs, top-right menu for Edit/Remove, and bottom Add Wage Log', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -252,12 +255,21 @@ void main() {
       expect(find.text('Total Earned'), findsOneWidget);
       expect(find.text('Total Days'), findsOneWidget);
 
-      // Sub-tabs
+      // Exactly 2 Sub-tabs (Overview & Wage Logs, NO Edit tab)
       expect(find.text('Overview'), findsOneWidget);
       expect(find.text('Wage Logs'), findsOneWidget);
-      expect(find.text('Edit'), findsOneWidget);
+      expect(find.text('Edit'), findsNothing);
 
-      // Actions
+      // Bottom fixed action button: Add Wage Log
+      expect(find.text('Add Wage Log'), findsOneWidget);
+
+      // Verify Edit and Remove are in the top-right overflow popup menu
+      final popupMenu = find.byType(PopupMenuButton<String>);
+      expect(popupMenu, findsOneWidget);
+
+      await tester.tap(popupMenu);
+      await tester.pumpAndSettle();
+
       expect(find.text('Edit Worker'), findsOneWidget);
       expect(find.text('Remove Worker'), findsOneWidget);
 
@@ -276,7 +288,7 @@ void main() {
       expect(find.text('Delete Worker?'), findsNothing);
     });
 
-    testWidgets('Screen 5: AttendanceScreen renders selectors and status chips', (tester) async {
+    testWidgets('Screen 5: AttendanceScreen renders selectors, shift picker, and status chips', (tester) async {
       tester.view.physicalSize = const Size(1080, 2400);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -297,15 +309,30 @@ void main() {
       expect(find.text('Select Worker *'), findsOneWidget);
       expect(find.text('Work Type *'), findsOneWidget);
       expect(find.text('Silkworm Feeding & Cleaning'), findsOneWidget);
+      expect(find.text('Shift *'), findsOneWidget);
+      expect(find.text('Day Shift'), findsOneWidget);
       expect(find.text('Date *'), findsOneWidget);
-      expect(find.text('Hours (Optional)'), findsOneWidget);
       expect(find.text('Amount (₹) *'), findsOneWidget);
-      expect(find.text('Status'), findsOneWidget);
+      expect(find.text('Payment Status *'), findsOneWidget);
       expect(find.text('Paid'), findsOneWidget);
       expect(find.text('Pending'), findsOneWidget);
       expect(find.text('Overdue'), findsOneWidget);
       expect(find.text('Save Log'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
+
+      // Tap Shift card to open SelectShiftSheet
+      await tester.tap(find.text('Day Shift'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Select Shift'), findsOneWidget);
+      expect(find.text('Default Shifts'), findsOneWidget);
+      expect(find.text('Early Morning Shift'), findsOneWidget);
+      expect(find.text('Day Shift'), findsWidgets);
+
+      // Select Early Morning Shift
+      await tester.tap(find.text('Early Morning Shift'));
+      await tester.pumpAndSettle();
+      expect(find.text('Early Morning Shift'), findsOneWidget);
 
       // Tap Pending status chip
       await tester.tap(find.text('Pending'));

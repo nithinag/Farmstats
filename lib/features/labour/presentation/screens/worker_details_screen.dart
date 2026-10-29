@@ -28,7 +28,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _selectedMonth = DateTime.now();
   }
 
@@ -360,7 +360,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
             ),
             const SizedBox(height: 16),
 
-            // Sub-tabs (Overview, Wage Logs, Edit)
+            // Sub-tabs: Exactly 2 tabs (Overview & Wage Logs)
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               decoration: const BoxDecoration(
@@ -377,16 +377,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                 tabs: const [
                   Tab(text: 'Overview'),
                   Tab(text: 'Wage Logs'),
-                  Tab(text: 'Edit'),
                 ],
-                onTap: (index) {
-                  if (index == 2) {
-                    // Navigate to Edit Worker screen
-                    context.push('/labour/${widget.worker.id}/edit', extra: widget.worker);
-                    // Revert tab back to Overview
-                    _tabController.index = 0;
-                  }
-                },
               ),
             ),
 
@@ -412,10 +403,37 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                     currency: currency,
                     expenses: workerExpenses,
                   ),
-
-                  // Tab 3: Placeholder (handled by onTap)
-                  const SizedBox.shrink(),
                 ],
+              ),
+            ),
+
+            // Fixed Bottom Action: + Add Wage Log
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              decoration: const BoxDecoration(
+                color: LabourColors.cardSurface,
+                border: Border(top: BorderSide(color: LabourColors.border)),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => context.push(
+                    '/labour/attendance',
+                    extra: {'workerId': widget.worker.id},
+                  ),
+                  icon: const Icon(Icons.add, color: Colors.white, size: 18),
+                  label: const Text(
+                    'Add Wage Log',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: LabourColors.forestGreen,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
               ),
             ),
           ],
@@ -627,41 +645,6 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
           )
         else
           ...recentExpenses.map((e) => _buildWageLogCard(e, currency)),
-
-        const SizedBox(height: 24),
-
-        // Bottom Actions (Edit Worker & Remove Worker)
-        Row(
-          children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => context.push('/labour/${widget.worker.id}/edit', extra: widget.worker),
-                icon: const Icon(Icons.edit_outlined, size: 16, color: LabourColors.primaryText),
-                label: const Text('Edit Worker', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: LabourColors.cardSurface,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  side: const BorderSide(color: LabourColors.border),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _handleRemoveWorker,
-                icon: const Icon(Icons.delete_outline_rounded, size: 16, color: LabourColors.error),
-                label: const Text('Remove Worker', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.error)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: LabourColors.softRedSurface,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -680,45 +663,36 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
   }
 
   Widget _buildWageLogCard(Expense e, NumberFormat currency) {
-    final type = LabourWorkType.findForTask(e.description);
-    final desc = e.description.toLowerCase();
-    final isPending = desc.contains('(pending)') || desc.contains('(unpaid)') || e.paymentMethod == 'Pending';
-    final isOverdue = desc.contains('(overdue)');
+    final info = WageLogInfo.parse(e.description, defaultWorker: widget.worker.fullName);
+    final type = LabourWorkType.findForTask(info.taskTitle);
+    final isPaid = info.status.toLowerCase() == 'paid';
+    final isOverdue = info.status.toLowerCase() == 'overdue';
 
-    final statusText = isOverdue ? 'Overdue' : (isPending ? 'Pending' : 'Paid');
     final statusBg = isOverdue
         ? LabourColors.softRedSurface
-        : (isPending ? LabourColors.softAmberSurface : LabourColors.softGreenSurface);
+        : (isPaid ? LabourColors.softGreenSurface : LabourColors.softAmberSurface);
     final statusColor = isOverdue
         ? LabourColors.error
-        : (isPending ? const Color(0xFFD97706) : LabourColors.forestGreen);
-
-    // Clean task title
-    var title = e.description;
-    if (title.toLowerCase().startsWith('labour:')) {
-      final parts = title.split('-');
-      if (parts.length > 1) {
-        title = parts.sublist(1).join('-').replaceAll(RegExp(r'\((Paid|Pending|Unpaid|Overdue)\)'), '').trim();
-      }
-    }
+        : (isPaid ? LabourColors.forestGreen : const Color(0xFFD97706));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: LabourColors.cardSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: LabourColors.border),
       ),
       child: InkWell(
         onTap: () {
           showWageLogActionSheet(
             context: context,
-            taskTitle: title,
+            taskTitle: info.taskTitle,
             workerName: widget.worker.fullName,
             formattedDate: DateFormat('d MMM yyyy').format(e.date),
             amount: e.amount,
-            status: statusText,
+            status: info.status,
+            onEdit: () => context.push('/labour/attendance', extra: e),
             onToggleStatus: () => _togglePaymentStatus(e),
             onDelete: () => _deleteWageLog(e),
           );
@@ -726,8 +700,8 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
         child: Row(
           children: [
             Container(
-              width: 38,
-              height: 38,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: type.bgColor,
                 borderRadius: BorderRadius.circular(10),
@@ -741,15 +715,15 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    info.taskTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    DateFormat('d MMM yyyy').format(e.date),
-                    style: const TextStyle(fontSize: 12, color: LabourColors.secondaryText),
+                    '${info.shiftCardDisplay} • ${DateFormat('d MMM yyyy').format(e.date)}',
+                    style: const TextStyle(fontSize: 11, color: LabourColors.secondaryText),
                   ),
                 ],
               ),
@@ -769,7 +743,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    statusText,
+                    info.status,
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
                   ),
                 ),

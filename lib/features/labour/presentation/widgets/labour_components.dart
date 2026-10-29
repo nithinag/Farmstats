@@ -233,6 +233,133 @@ class SelectWorkTypeSheet extends StatelessWidget {
   }
 }
 
+/// Component 7: Shift Selector Modal Bottom Sheet
+class SelectShiftSheet extends StatelessWidget {
+  final FarmShift selectedShift;
+  final ValueChanged<FarmShift> onSelected;
+
+  const SelectShiftSheet({
+    super.key,
+    required this.selectedShift,
+    required this.onSelected,
+  });
+
+  static Future<FarmShift?> show(BuildContext context, FarmShift currentShift) {
+    return showModalBottomSheet<FarmShift>(
+      context: context,
+      backgroundColor: LabourColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SelectShiftSheet(
+        selectedShift: currentShift,
+        onSelected: (shift) => Navigator.pop(ctx, shift),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: LabourColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Select Shift',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: LabourColors.primaryText,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20, color: LabourColors.secondaryText),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Default Shifts',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: LabourColors.secondaryText,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...FarmShift.defaultShifts.map((shift) {
+              final isSelected = selectedShift.id == shift.id;
+              return Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                decoration: BoxDecoration(
+                  color: isSelected ? LabourColors.softGreenSurface : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: isSelected ? LabourColors.forestGreen : LabourColors.border,
+                    width: isSelected ? 1.5 : 1.0,
+                  ),
+                ),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  leading: Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: shift.bgColor,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(shift.icon, color: shift.iconColor, size: 22),
+                  ),
+                  title: Text(
+                    shift.name,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                      color: LabourColors.primaryText,
+                    ),
+                  ),
+                  subtitle: Text(
+                    shift.timeRange,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: LabourColors.secondaryText,
+                    ),
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle_rounded, color: LabourColors.forestGreen, size: 22)
+                      : null,
+                  onTap: () => onSelected(shift),
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Component 8: Worker Search Modal Bottom Sheet
 class WorkerPickerSheet extends StatefulWidget {
   final List<LabourWorker> workers;
@@ -384,19 +511,21 @@ class _WorkerPickerSheetState extends State<WorkerPickerSheet> {
   }
 }
 
-/// Component 9: Filter Wage Logs Modal Bottom Sheet
+/// Component 10: Filter Wage Logs Modal Bottom Sheet
 class FilterWageLogsSheet extends StatefulWidget {
   final DateTime selectedMonth;
   final List<LabourWorker> workers;
   final String? selectedWorkerId;
+  final String? selectedWorkType;
   final String selectedStatus; // 'All', 'Paid', 'Pending'
-  final Function(DateTime month, String? workerId, String status) onApply;
+  final Function(DateTime month, String? workerId, String? workType, String status) onApply;
 
   const FilterWageLogsSheet({
     super.key,
     required this.selectedMonth,
     required this.workers,
     this.selectedWorkerId,
+    this.selectedWorkType,
     required this.selectedStatus,
     required this.onApply,
   });
@@ -406,8 +535,9 @@ class FilterWageLogsSheet extends StatefulWidget {
     required DateTime initialMonth,
     required List<LabourWorker> workers,
     String? currentWorkerId,
+    String? currentWorkType,
     required String currentStatus,
-    required Function(DateTime month, String? workerId, String status) onApply,
+    required Function(DateTime month, String? workerId, String? workType, String status) onApply,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -419,6 +549,7 @@ class FilterWageLogsSheet extends StatefulWidget {
         selectedMonth: initialMonth,
         workers: workers,
         selectedWorkerId: currentWorkerId,
+        selectedWorkType: currentWorkType,
         selectedStatus: currentStatus,
         onApply: onApply,
       ),
@@ -432,6 +563,7 @@ class FilterWageLogsSheet extends StatefulWidget {
 class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
   late DateTime _month;
   String? _workerId;
+  String? _workType;
   late String _status;
 
   @override
@@ -439,6 +571,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
     super.initState();
     _month = widget.selectedMonth;
     _workerId = widget.selectedWorkerId;
+    _workType = widget.selectedWorkType;
     _status = widget.selectedStatus;
   }
 
@@ -462,13 +595,24 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              'Filter Wage Logs',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: LabourColors.primaryText,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Filter Wage Logs',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: LabourColors.primaryText,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 20, color: LabourColors.secondaryText),
+                  onPressed: () => Navigator.pop(context),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
             ),
             const SizedBox(height: 18),
             // Month Row
@@ -534,6 +678,36 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            // Work Type Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Work Type', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: LabourColors.background,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: LabourColors.border),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value: _workType,
+                      isDense: true,
+                      icon: const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('All Types')),
+                        ...LabourWorkType.sericultureTypes.map(
+                          (t) => DropdownMenuItem(value: t.title, child: Text(t.title)),
+                        ),
+                      ],
+                      onChanged: (newType) => setState(() => _workType = newType),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 18),
             // Status Chips
             const Text('Status', style: TextStyle(fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
@@ -572,6 +746,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                       setState(() {
                         _month = DateTime.now();
                         _workerId = null;
+                        _workType = null;
                         _status = 'All';
                       });
                     },
@@ -587,7 +762,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      widget.onApply(_month, _workerId, _status);
+                      widget.onApply(_month, _workerId, _workType, _status);
                       Navigator.pop(context);
                     },
                     style: ElevatedButton.styleFrom(
@@ -860,6 +1035,7 @@ Future<void> showWageLogActionSheet({
   required String formattedDate,
   required double amount,
   required String status,
+  VoidCallback? onEdit,
   required VoidCallback onToggleStatus,
   required VoidCallback onDelete,
 }) {
@@ -970,6 +1146,31 @@ Future<void> showWageLogActionSheet({
               ),
               const SizedBox(height: 20),
 
+              // Action 0: Edit Wage Log (if provided)
+              if (onEdit != null) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      onEdit();
+                    },
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: LabourColors.primaryText),
+                    label: const Text(
+                      'Edit Wage Log',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      backgroundColor: LabourColors.background,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: LabourColors.border),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
+
               // Action 1: Toggle Payment Status
               SizedBox(
                 width: double.infinity,
@@ -1061,7 +1262,6 @@ class DeleteWageLogDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: '₹', decimalDigits: 0, locale: 'en_IN');
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       backgroundColor: LabourColors.cardSurface,
@@ -1091,10 +1291,10 @@ class DeleteWageLogDialog extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              'Are you sure you want to delete this wage log of ${currency.format(amount)} for $workerName?\nThis will remove the wage record and corresponding expense.',
+            const Text(
+              'This will permanently delete this wage log.\nThis action cannot be undone.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
                 color: LabourColors.secondaryText,
