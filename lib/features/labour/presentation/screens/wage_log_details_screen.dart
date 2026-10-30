@@ -408,7 +408,7 @@ class _WageLogDetailsScreenState extends ConsumerState<WageLogDetailsScreen> {
               ),
             ),
 
-            // Bottom Actions Bar (Screen 8 Reference)
+            // Bottom Actions Bar (Screen 8 & 9 Reference)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: const BoxDecoration(
@@ -417,55 +417,84 @@ class _WageLogDetailsScreenState extends ConsumerState<WageLogDetailsScreen> {
               ),
               child: Row(
                 children: [
-                  // Action 1: Edit
-                  OutlinedButton.icon(
-                    onPressed: () => context.push('/labour/attendance', extra: _expense),
-                    icon: const Icon(Icons.edit_outlined, size: 16, color: LabourColors.primaryText),
-                    label: const Text('Edit', style: TextStyle(fontWeight: FontWeight.w700, color: LabourColors.primaryText)),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      side: const BorderSide(color: LabourColors.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-
-                  // Action 2: Contextual Mark as Paid / Mark as Unpaid
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _markStatus(!isPaid),
-                      icon: Icon(
-                        isPaid ? Icons.access_time_rounded : Icons.check_circle_rounded,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      label: Text(
-                        isPaid ? 'Mark as Unpaid' : 'Mark as Paid',
-                        style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: isPaid ? const Color(0xFFD97706) : LabourColors.forestGreen,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                  if (!isPaid) ...[
+                    // Action 1: Edit
+                    OutlinedButton.icon(
+                      onPressed: () => context.push('/labour/attendance', extra: _expense),
+                      icon: const Icon(Icons.edit_outlined, size: 16, color: LabourColors.primaryText),
+                      label: const Text('Edit', style: TextStyle(fontWeight: FontWeight.w700, color: LabourColors.primaryText)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        side: const BorderSide(color: LabourColors.border),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        elevation: 0,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
+                    const SizedBox(width: 10),
 
-                  // Action 3: Delete
-                  OutlinedButton(
-                    onPressed: _deleteWageLog,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      side: const BorderSide(color: LabourColors.error),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    // Action 2: Mark as Paid
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _markStatus(true),
+                        icon: const Icon(
+                          Icons.check_circle_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        ),
+                        label: const Text(
+                          'Mark as Paid',
+                          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white, fontSize: 13),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: LabourColors.forestGreen,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                      ),
                     ),
-                    child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700, color: LabourColors.error)),
-                  ),
+                    const SizedBox(width: 10),
+
+                    // Action 3: Delete
+                    OutlinedButton(
+                      onPressed: _deleteWageLog,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        side: const BorderSide(color: LabourColors.error),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700, color: LabourColors.error)),
+                    ),
+                  ] else ...[
+                    // When Paid: Edit and Delete only (NO Mark as Unpaid - auditable financial records)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/labour/attendance', extra: _expense),
+                        icon: const Icon(Icons.edit_outlined, size: 16, color: LabourColors.primaryText),
+                        label: const Text('Edit Wage Log', style: TextStyle(fontWeight: FontWeight.w700, color: LabourColors.primaryText)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: LabourColors.border),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _deleteWageLog,
+                        icon: const Icon(Icons.delete_outline_rounded, size: 16, color: LabourColors.error),
+                        label: const Text('Delete', style: TextStyle(fontWeight: FontWeight.w700, color: LabourColors.error)),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: LabourColors.error),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -717,31 +717,383 @@ class BatchPickerSheet extends StatelessWidget {
   }
 }
 
+/// Screen 2: Filter Workers Modal Bottom Sheet
+class FilterWorkersSheet extends StatefulWidget {
+  final String currentWorkerStatus; // 'All', 'Active', 'Inactive'
+  final String currentTodayStatus; // 'All', 'Added Today', 'Not Added'
+  final String currentSort; // 'Name (A - Z)', 'Daily Wage (High to Low)', 'Daily Wage (Low to High)', 'Total Earned (High to Low)'
+  final VoidCallback? onExport;
+  final void Function(String workerStatus, String todayStatus, String sort) onApply;
+
+  const FilterWorkersSheet({
+    super.key,
+    this.currentWorkerStatus = 'All',
+    this.currentTodayStatus = 'All',
+    this.currentSort = 'Name (A - Z)',
+    this.onExport,
+    required this.onApply,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    String currentWorkerStatus = 'All',
+    String currentTodayStatus = 'All',
+    String currentSort = 'Name (A - Z)',
+    VoidCallback? onExport,
+    required void Function(String workerStatus, String todayStatus, String sort) onApply,
+  }) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: LabourColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => FilterWorkersSheet(
+        currentWorkerStatus: currentWorkerStatus,
+        currentTodayStatus: currentTodayStatus,
+        currentSort: currentSort,
+        onExport: onExport,
+        onApply: onApply,
+      ),
+    );
+  }
+
+  @override
+  State<FilterWorkersSheet> createState() => _FilterWorkersSheetState();
+}
+
+class _FilterWorkersSheetState extends State<FilterWorkersSheet> {
+  late String _workerStatus;
+  late String _todayStatus;
+  late String _sort;
+
+  final List<String> _sortOptions = const [
+    'Name (A - Z)',
+    'Daily Wage (High to Low)',
+    'Daily Wage (Low to High)',
+    'Total Earned (High to Low)',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _workerStatus = widget.currentWorkerStatus;
+    _todayStatus = widget.currentTodayStatus;
+    _sort = widget.currentSort;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: LabourColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Filter Workers',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: LabourColors.primaryText,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: LabourColors.secondaryText),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Section 1: Worker Status
+              const Text(
+                'Worker Status',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: LabourColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: Row(
+                  children: [
+                    _buildSegmentButton(
+                      title: 'All',
+                      isSelected: _workerStatus == 'All',
+                      onTap: () => setState(() => _workerStatus = 'All'),
+                    ),
+                    _buildSegmentButton(
+                      title: 'Active',
+                      isSelected: _workerStatus == 'Active',
+                      onTap: () => setState(() => _workerStatus = 'Active'),
+                    ),
+                    _buildSegmentButton(
+                      title: 'Inactive',
+                      isSelected: _workerStatus == 'Inactive',
+                      onTap: () => setState(() => _workerStatus = 'Inactive'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Section 2: Today's Status
+              const Text(
+                "Today's Status",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: LabourColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: Row(
+                  children: [
+                    _buildSegmentButton(
+                      title: 'All',
+                      isSelected: _todayStatus == 'All',
+                      onTap: () => setState(() => _todayStatus = 'All'),
+                    ),
+                    _buildSegmentButton(
+                      title: 'Added Today',
+                      isSelected: _todayStatus == 'Added Today',
+                      onTap: () => setState(() => _todayStatus = 'Added Today'),
+                    ),
+                    _buildSegmentButton(
+                      title: 'Not Added',
+                      isSelected: _todayStatus == 'Not Added',
+                      onTap: () => setState(() => _todayStatus = 'Not Added'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // Section 3: Sort By
+              const Text(
+                'Sort By',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ..._sortOptions.map((opt) {
+                final isSelected = _sort == opt;
+                return InkWell(
+                  onTap: () => setState(() => _sort = opt),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? LabourColors.forestGreen : LabourColors.border,
+                              width: 2,
+                            ),
+                          ),
+                          alignment: Alignment.center,
+                          child: isSelected
+                              ? Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: const BoxDecoration(
+                                    color: LabourColors.forestGreen,
+                                    shape: BoxShape.circle,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          opt,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? LabourColors.primaryText : LabourColors.secondaryText,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+
+              const SizedBox(height: 24),
+
+              // Action Buttons: Reset & Apply
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _workerStatus = 'All';
+                          _todayStatus = 'All';
+                          _sort = 'Name (A - Z)';
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(color: LabourColors.border),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Reset', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w700, fontSize: 14)),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        widget.onApply(_workerStatus, _todayStatus, _sort);
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: LabourColors.forestGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+              if (widget.onExport != null) ...[
+                const SizedBox(height: 14),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onExport!();
+                    },
+                    icon: const Icon(Icons.download_rounded, size: 18, color: LabourColors.forestGreen),
+                    label: const Text(
+                      'Export Workers (CSV)',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: LabourColors.forestGreen),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegmentButton({
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? LabourColors.forestGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isSelected ? Colors.white : LabourColors.secondaryText,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Component 5: Filter Wage Logs Modal Bottom Sheet (Screen 11 Reference)
 class FilterWageLogsSheet extends StatefulWidget {
   final DateTime selectedMonth;
   final List<Batch> batches;
   final String? selectedBatchId;
+  final String? currentBatchName;
   final List<LabourWorker> workers;
   final String? selectedWorkerId;
   final String? selectedWorkType;
   final String selectedStatus; // 'All', 'Paid', 'Unpaid'
   final String selectedSort;
+  final String dataScope; // 'current_batch', 'select_batch'
+  final String period; // 'this_month', 'select_month', 'this_year', 'select_year', 'entire_history'
   final Function(DateTime month, String? batchId, String? workerId, String? workType, String status)? onApply;
   final Function(DateTime month, String? batchId, String? workerId, String? workType, String status, String sort)? onApplyWithSort;
+  final Function({
+    required String dataScope,
+    required String? batchId,
+    required String period,
+    required DateTime selectedDate,
+    required String status,
+    required String sort,
+    String? workerId,
+    String? workType,
+  })? onApplyDetailed;
 
   const FilterWageLogsSheet({
     super.key,
     required this.selectedMonth,
     this.batches = const [],
     this.selectedBatchId,
+    this.currentBatchName,
     this.workers = const [],
     this.selectedWorkerId,
     this.selectedWorkType,
     this.selectedStatus = 'All',
-    this.selectedSort = 'Work Date (Newest First)',
+    this.selectedSort = 'Newest First',
+    this.dataScope = 'current_batch',
+    this.period = 'this_month',
     this.onApply,
     this.onApplyWithSort,
+    this.onApplyDetailed,
   });
 
   static Future<void> show(
@@ -749,13 +1101,26 @@ class FilterWageLogsSheet extends StatefulWidget {
     required DateTime initialMonth,
     List<Batch> batches = const [],
     String? currentBatchId,
+    String? currentBatchName,
     List<LabourWorker> workers = const [],
     String? currentWorkerId,
     String? currentWorkType,
     String currentStatus = 'All',
-    String currentSort = 'Work Date (Newest First)',
+    String currentSort = 'Newest First',
+    String dataScope = 'current_batch',
+    String period = 'this_month',
     Function(DateTime month, String? batchId, String? workerId, String? workType, String status)? onApply,
     Function(DateTime month, String? batchId, String? workerId, String? workType, String status, String sort)? onApplyWithSort,
+    Function({
+      required String dataScope,
+      required String? batchId,
+      required String period,
+      required DateTime selectedDate,
+      required String status,
+      required String sort,
+      String? workerId,
+      String? workType,
+    })? onApplyDetailed,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -768,13 +1133,17 @@ class FilterWageLogsSheet extends StatefulWidget {
         selectedMonth: initialMonth,
         batches: batches,
         selectedBatchId: currentBatchId,
+        currentBatchName: currentBatchName,
         workers: workers,
         selectedWorkerId: currentWorkerId,
         selectedWorkType: currentWorkType,
         selectedStatus: currentStatus,
         selectedSort: currentSort,
+        dataScope: dataScope,
+        period: period,
         onApply: onApply,
         onApplyWithSort: onApplyWithSort,
+        onApplyDetailed: onApplyDetailed,
       ),
     );
   }
@@ -784,26 +1153,49 @@ class FilterWageLogsSheet extends StatefulWidget {
 }
 
 class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
-  late DateTime _month;
+  late String _dataScope;
   String? _batchId;
+  late String _period;
+  late DateTime _date;
   String? _workerId;
   String? _workType;
   late String _status;
   late String _sort;
 
+  final List<String> _sortOptions = const [
+    'Newest First',
+    'Oldest First',
+    'Highest Amount',
+    'Lowest Amount',
+    'Worker Name',
+  ];
+
   @override
   void initState() {
     super.initState();
-    _month = widget.selectedMonth;
+    _dataScope = widget.dataScope;
     _batchId = widget.selectedBatchId;
+    _period = widget.period;
+    _date = widget.selectedMonth;
     _workerId = widget.selectedWorkerId;
     _workType = widget.selectedWorkType;
     _status = widget.selectedStatus;
-    _sort = widget.selectedSort;
+    _sort = _mapSortToScreen11(widget.selectedSort);
+  }
+
+  String _mapSortToScreen11(String raw) {
+    if (raw.contains('Oldest')) return 'Oldest First';
+    if (raw.contains('Highest') || raw.contains('High to Low')) return 'Highest Amount';
+    if (raw.contains('Lowest') || raw.contains('Low to High')) return 'Lowest Amount';
+    if (raw.contains('Worker')) return 'Worker Name';
+    return 'Newest First';
   }
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final batchDisplayName = widget.currentBatchName ?? 'Batch 1 - Mock';
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -844,118 +1236,173 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
               ),
               const SizedBox(height: 18),
 
-              // Month Label & Dropdown
+              // SECTION 1: DATA SCOPE (Screen 11 Reference)
               const Text(
-                'Month',
+                'Data Scope',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: LabourColors.secondaryText,
                 ),
               ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color: LabourColors.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LabourColors.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _month.month,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
-                    items: List.generate(12, (i) {
-                      final m = i + 1;
-                      final date = DateTime(_month.year, m);
-                      return DropdownMenuItem(
-                        value: m,
-                        child: Row(
-                          children: [
-                            const Icon(Icons.calendar_today_outlined, size: 16, color: LabourColors.forestGreen),
-                            const SizedBox(width: 10),
-                            Text(
-                              DateFormat('MMMM yyyy').format(date),
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: LabourColors.primaryText,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                    onChanged: (newMonth) {
-                      if (newMonth != null) {
-                        setState(() => _month = DateTime(_month.year, newMonth));
-                      }
-                    },
+              const SizedBox(height: 8),
+              _buildRadioRow(
+                title: 'Current Batch ($batchDisplayName)',
+                isSelected: _dataScope == 'current_batch',
+                onTap: () => setState(() => _dataScope = 'current_batch'),
+              ),
+              _buildRadioRow(
+                title: 'Select Batch',
+                isSelected: _dataScope == 'select_batch',
+                onTap: () => setState(() => _dataScope = 'select_batch'),
+              ),
+              if (_dataScope == 'select_batch') ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: LabourColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: LabourColors.border),
                   ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Batch Label & Dropdown
-              const Text(
-                'Batch',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: LabourColors.secondaryText,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color: LabourColors.background,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: LabourColors.border),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String?>(
-                    value: _batchId,
-                    isExpanded: true,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Row(
-                          children: [
-                            Icon(Icons.layers_outlined, size: 18, color: LabourColors.secondaryText),
-                            SizedBox(width: 10),
-                            Text('All Batches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
-                          ],
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String?>(
+                      value: _batchId,
+                      isExpanded: true,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                      items: [
+                        const DropdownMenuItem(
+                          value: null,
+                          child: Text('All Batches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
                         ),
-                      ),
-                      ...widget.batches.map(
-                        (b) => DropdownMenuItem(
-                          value: b.id,
-                          child: Row(
-                            children: [
-                              const Icon(Icons.layers_outlined, size: 18, color: LabourColors.forestGreen),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  b.batchName,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                        ...widget.batches.map(
+                          (b) => DropdownMenuItem(
+                            value: b.id,
+                            child: Text(
+                              b.batchName,
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                    onChanged: (newBatch) => setState(() => _batchId = newBatch),
+                      ],
+                      onChanged: (newBatch) => setState(() => _batchId = newBatch),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
+              ],
+              const SizedBox(height: 18),
 
-              // Payment Status: All / Paid / Unpaid (Screen 11 Reference)
+              // SECTION 2: PERIOD (Screen 11 Reference)
+              const Text(
+                'Period',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildRadioRow(
+                title: 'This Month (${DateFormat('MMMM yyyy').format(now)})',
+                isSelected: _period == 'this_month',
+                onTap: () => setState(() {
+                  _period = 'this_month';
+                  _date = DateTime(now.year, now.month);
+                }),
+              ),
+              _buildRadioRow(
+                title: 'Select Month',
+                isSelected: _period == 'select_month',
+                onTap: () => setState(() => _period = 'select_month'),
+              ),
+              if (_period == 'select_month') ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: LabourColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: LabourColors.border),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _date.month,
+                      isExpanded: true,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                      items: List.generate(12, (i) {
+                        final m = i + 1;
+                        final date = DateTime(_date.year, m);
+                        return DropdownMenuItem(
+                          value: m,
+                          child: Text(
+                            DateFormat('MMMM yyyy').format(date),
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                          ),
+                        );
+                      }),
+                      onChanged: (newMonth) {
+                        if (newMonth != null) {
+                          setState(() => _date = DateTime(_date.year, newMonth));
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+              _buildRadioRow(
+                title: 'This Year (${now.year})',
+                isSelected: _period == 'this_year',
+                onTap: () => setState(() {
+                  _period = 'this_year';
+                  _date = DateTime(now.year, 1);
+                }),
+              ),
+              _buildRadioRow(
+                title: 'Select Year',
+                isSelected: _period == 'select_year',
+                onTap: () => setState(() => _period = 'select_year'),
+              ),
+              if (_period == 'select_year') ...[
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: LabourColors.background,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: LabourColors.border),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _date.year,
+                      isExpanded: true,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                      items: [now.year - 2, now.year - 1, now.year, now.year + 1].map((yr) {
+                        return DropdownMenuItem(
+                          value: yr,
+                          child: Text(
+                            '$yr',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (newYr) {
+                        if (newYr != null) {
+                          setState(() => _date = DateTime(newYr, _date.month));
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
+              _buildRadioRow(
+                title: 'Entire History',
+                isSelected: _period == 'entire_history',
+                onTap: () => setState(() => _period = 'entire_history'),
+              ),
+              const SizedBox(height: 18),
+
+              // SECTION 3: PAYMENT STATUS (Screen 11 Reference)
               const Text(
                 'Payment Status',
                 style: TextStyle(
@@ -964,7 +1411,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                   color: LabourColors.secondaryText,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
@@ -980,18 +1427,18 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
 
-              // Sort by Dropdown (Screen 11 Reference)
+              // SECTION 4: SORT BY (Screen 11 Reference)
               const Text(
-                'Sort by',
+                'Sort By',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: LabourColors.secondaryText,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
                 decoration: BoxDecoration(
@@ -1004,48 +1451,12 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                     value: _sort,
                     isExpanded: true,
                     icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Work Date (Newest First)',
-                        child: Row(
-                          children: [
-                            Icon(Icons.sort_rounded, size: 18, color: LabourColors.forestGreen),
-                            SizedBox(width: 10),
-                            Text('Work Date (Newest First)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Work Date (Oldest First)',
-                        child: Row(
-                          children: [
-                            Icon(Icons.sort_rounded, size: 18, color: LabourColors.secondaryText),
-                            SizedBox(width: 10),
-                            Text('Work Date (Oldest First)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Amount (High to Low)',
-                        child: Row(
-                          children: [
-                            Icon(Icons.trending_down_rounded, size: 18, color: LabourColors.secondaryText),
-                            SizedBox(width: 10),
-                            Text('Amount (High to Low)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Amount (Low to High)',
-                        child: Row(
-                          children: [
-                            Icon(Icons.trending_up_rounded, size: 18, color: LabourColors.secondaryText),
-                            SizedBox(width: 10),
-                            Text('Amount (Low to High)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                          ],
-                        ),
-                      ),
-                    ],
+                    items: _sortOptions.map((opt) {
+                      return DropdownMenuItem(
+                        value: opt,
+                        child: Text(opt, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
+                      );
+                    }).toList(),
                     onChanged: (newSort) {
                       if (newSort != null) setState(() => _sort = newSort);
                     },
@@ -1054,19 +1465,22 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
               ),
 
               const SizedBox(height: 24),
-              // Action Buttons: Reset & Apply
+
+              // ACTION BUTTONS: Reset & Apply
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
                         setState(() {
-                          _month = DateTime.now();
+                          _dataScope = 'current_batch';
                           _batchId = null;
+                          _period = 'this_month';
+                          _date = DateTime.now();
+                          _status = 'All';
+                          _sort = 'Newest First';
                           _workerId = null;
                           _workType = null;
-                          _status = 'All';
-                          _sort = 'Work Date (Newest First)';
                         });
                       },
                       style: OutlinedButton.styleFrom(
@@ -1081,10 +1495,21 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        if (widget.onApplyWithSort != null) {
-                          widget.onApplyWithSort!(_month, _batchId, _workerId, _workType, _status, _sort);
+                        if (widget.onApplyDetailed != null) {
+                          widget.onApplyDetailed!(
+                            dataScope: _dataScope,
+                            batchId: _batchId,
+                            period: _period,
+                            selectedDate: _date,
+                            status: _status,
+                            sort: _sort,
+                            workerId: _workerId,
+                            workType: _workType,
+                          );
+                        } else if (widget.onApplyWithSort != null) {
+                          widget.onApplyWithSort!(_date, _batchId, _workerId, _workType, _status, _sort);
                         } else if (widget.onApply != null) {
-                          widget.onApply!(_month, _batchId, _workerId, _workType, _status);
+                          widget.onApply!(_date, _batchId, _workerId, _workType, _status);
                         }
                         Navigator.pop(context);
                       },
@@ -1107,6 +1532,57 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
     );
   }
 
+  Widget _buildRadioRow({
+    required String title,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? LabourColors.forestGreen : LabourColors.border,
+                  width: 2,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: isSelected
+                  ? Container(
+                      width: 10,
+                      height: 10,
+                      decoration: const BoxDecoration(
+                        color: LabourColors.forestGreen,
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? LabourColors.primaryText : LabourColors.secondaryText,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusChip(String label) {
     final isSelected = _status.toLowerCase() == label.toLowerCase() ||
         (_status == 'Pending' && label == 'Unpaid') ||
@@ -1115,7 +1591,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
       child: GestureDetector(
         onTap: () => setState(() => _status = label),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? LabourColors.forestGreen : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
@@ -1124,7 +1600,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
               color: isSelected ? Colors.white : LabourColors.secondaryText,
             ),
@@ -1587,46 +2063,7 @@ Future<void> showWageLogActionSheet({
                 const Divider(height: 1, color: LabourColors.borderLight),
               ],
 
-              // Contextual Action 3: If Paid -> Mark as Unpaid (amber/orange text with a clock icon, Screen 10 Reference)
-              if (isPaid) ...[
-                InkWell(
-                  onTap: () async {
-                    Navigator.pop(ctx);
-                    final confirmed = await ConfirmMarkPendingDialog.show(
-                      context,
-                      workerName: workerName,
-                      amount: amount,
-                      formattedDate: formattedDate,
-                      shiftName: displayShift,
-                      onConfirm: () {},
-                    );
-                    if (confirmed == true) {
-                      if (onMarkPending != null) {
-                        onMarkPending();
-                      } else {
-                        onToggleStatus();
-                      }
-                    }
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                    child: Row(
-                      children: [
-                        Icon(Icons.access_time_rounded, size: 20, color: Color(0xFFD97706)),
-                        SizedBox(width: 14),
-                        Text(
-                          'Mark as Unpaid',
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Divider(height: 1, color: LabourColors.borderLight),
-              ],
-
-              // Action 4: Delete Wage Log (red text and delete icon)
+              // Action 3: Delete Wage Log (red text and delete icon)
               InkWell(
                 onTap: () {
                   Navigator.pop(ctx);

@@ -5,6 +5,7 @@ import 'package:farmstats/features/labour/presentation/screens/quick_add_worker_
 import 'package:farmstats/features/labour/presentation/screens/wage_log_success_screen.dart';
 import 'package:farmstats/features/labour/presentation/screens/add_multiple_workers_screen.dart';
 import 'package:farmstats/features/labour/presentation/screens/wage_log_details_screen.dart';
+import 'package:farmstats/features/labour/presentation/widgets/labour_components.dart';
 import 'package:farmstats/features/labour/domain/entities/labour_entities.dart';
 import 'package:farmstats/features/labour/application/providers/labour_notifier.dart';
 import 'package:farmstats/features/labour/application/providers/labour_state.dart';
@@ -226,6 +227,172 @@ void main() {
       expect(find.text('Edit'), findsOneWidget);
       expect(find.text('Mark as Paid'), findsOneWidget);
       expect(find.text('Delete'), findsOneWidget);
+    });
+
+    testWidgets('Screen 2: FilterWorkersSheet renders status chips, today status, sort radio options, and handles apply', (tester) async {
+      String appliedStatus = '';
+      String appliedToday = '';
+      String appliedSort = '';
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FilterWorkersSheet(
+              currentWorkerStatus: 'All',
+              currentTodayStatus: 'All',
+              currentSort: 'Name (A - Z)',
+              onApply: (status, today, sort) {
+                appliedStatus = status;
+                appliedToday = today;
+                appliedSort = sort;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filter Workers'), findsOneWidget);
+      expect(find.text('Worker Status'), findsOneWidget);
+      expect(find.text('Active'), findsOneWidget);
+      expect(find.text('Inactive'), findsOneWidget);
+      expect(find.text("Today's Status"), findsOneWidget);
+      expect(find.text('Added Today'), findsOneWidget);
+      expect(find.text('Not Added'), findsOneWidget);
+      expect(find.text('Sort By'), findsOneWidget);
+      expect(find.text('Name (A - Z)'), findsOneWidget);
+      expect(find.text('Daily Wage (High to Low)'), findsOneWidget);
+      expect(find.text('Daily Wage (Low to High)'), findsOneWidget);
+      expect(find.text('Total Earned (High to Low)'), findsOneWidget);
+      expect(find.text('Reset'), findsOneWidget);
+      expect(find.text('Apply'), findsOneWidget);
+
+      // Select Active and Daily Wage (High to Low)
+      await tester.tap(find.text('Active'));
+      await tester.tap(find.text('Added Today'));
+      await tester.tap(find.text('Daily Wage (High to Low)'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
+
+      expect(appliedStatus, 'Active');
+      expect(appliedToday, 'Added Today');
+      expect(appliedSort, 'Daily Wage (High to Low)');
+    });
+
+    testWidgets('Screen 10: showWageLogActionSheet displays Edit, Mark as Paid, Delete, Cancel for Unpaid and never Mark as Unpaid for Paid', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () {
+                  showWageLogActionSheet(
+                    context: ctx,
+                    taskTitle: 'Silkworm Feeding & Cleaning',
+                    workerName: 'Srikanth',
+                    formattedDate: '30 Oct 2026',
+                    amount: 500,
+                    status: 'Unpaid',
+                    onToggleStatus: () {},
+                    onDelete: () {},
+                  );
+                },
+                child: const Text('Open Options'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Open for Unpaid
+      await tester.tap(find.text('Open Options'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wage Log Options'), findsOneWidget);
+      expect(find.text('Edit Wage Log'), findsOneWidget);
+      expect(find.text('Mark as Paid'), findsOneWidget);
+      expect(find.text('Delete Wage Log'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      expect(find.text('Mark as Unpaid'), findsNothing);
+
+      // Dismiss
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      // Now open for Paid
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (ctx) => ElevatedButton(
+                onPressed: () {
+                  showWageLogActionSheet(
+                    context: ctx,
+                    taskTitle: 'Silkworm Feeding & Cleaning',
+                    workerName: 'Srikanth',
+                    formattedDate: '30 Oct 2026',
+                    amount: 500,
+                    status: 'Paid',
+                    onToggleStatus: () {},
+                    onDelete: () {},
+                  );
+                },
+                child: const Text('Open Paid Options'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Open Paid Options'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Wage Log Options'), findsOneWidget);
+      expect(find.text('Edit Wage Log'), findsOneWidget);
+      expect(find.text('Delete Wage Log'), findsOneWidget);
+      expect(find.text('Cancel'), findsOneWidget);
+      // Strictly verify that once paid, it can NEVER be marked as unpaid
+      expect(find.text('Mark as Unpaid'), findsNothing);
+      expect(find.text('Mark as Paid'), findsNothing);
+    });
+
+    testWidgets('Screen 11: FilterWageLogsSheet renders Data Scope, Period, Payment Status chips, and Sort By', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: FilterWageLogsSheet(
+              selectedMonth: DateTime.now(),
+              currentBatchName: 'Batch 1 - Mock',
+              selectedStatus: 'All',
+              selectedSort: 'Newest First',
+              onApply: (month, batchId, workerId, workType, status) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Filter Wage Logs'), findsOneWidget);
+      expect(find.text('Data Scope'), findsOneWidget);
+      expect(find.textContaining('Current Batch'), findsOneWidget);
+      expect(find.text('Select Batch'), findsOneWidget);
+      expect(find.text('Period'), findsOneWidget);
+      expect(find.textContaining('This Month'), findsOneWidget);
+      expect(find.text('Select Month'), findsOneWidget);
+      expect(find.textContaining('This Year'), findsOneWidget);
+      expect(find.text('Entire History'), findsOneWidget);
+      expect(find.text('Payment Status'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+      expect(find.text('Paid'), findsOneWidget);
+      expect(find.text('Unpaid'), findsOneWidget);
+      expect(find.text('Sort By'), findsOneWidget);
+      expect(find.text('Newest First'), findsOneWidget);
+      expect(find.text('Reset'), findsOneWidget);
+      expect(find.text('Apply'), findsOneWidget);
     });
   });
 }

@@ -122,10 +122,14 @@ void main() {
       expect(find.text('Labour & Wages'), findsOneWidget);
       expect(find.text('Workers'), findsOneWidget);
       expect(find.text('Wage Logs'), findsOneWidget);
+      expect(find.byIcon(Icons.tune_rounded), findsOneWidget);
 
-      // KPI cards
-      expect(find.text('Total Paid Wages'), findsOneWidget);
-      expect(find.text('Pending Dues'), findsOneWidget);
+      // Hero Attendance Card
+      expect(find.text("Add Today's Wages"), findsOneWidget);
+
+      // Verify redundant KPI cards are removed from Screen 1
+      expect(find.text('Total Paid Wages'), findsNothing);
+      expect(find.text('Pending Dues'), findsNothing);
 
       // Workers list
       expect(find.text('Farm Workers (2)'), findsOneWidget);
@@ -167,10 +171,6 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify Wage Logs elements
-      expect(find.textContaining('All ('), findsOneWidget);
-      expect(find.textContaining('Paid ('), findsOneWidget);
-      expect(find.textContaining('Unpaid ('), findsOneWidget);
-      expect(find.text('All Batches'), findsOneWidget);
       expect(find.text('Add Wage Log'), findsOneWidget);
 
       // Worker-first card hierarchy: worker names and shift displays
@@ -185,8 +185,8 @@ void main() {
 
       expect(find.text('Wage Log Options'), findsOneWidget);
       expect(find.text('Edit Wage Log'), findsOneWidget);
-      // Since Silkworm Feeding & Cleaning is Paid, it MUST show Mark as Unpaid and NEVER Mark as Paid
-      expect(find.text('Mark as Unpaid'), findsOneWidget);
+      // Since Silkworm Feeding & Cleaning is Paid, it cannot be reverted to Unpaid
+      expect(find.text('Mark as Unpaid'), findsNothing);
       expect(find.text('Mark as Paid'), findsNothing);
       expect(find.text('Delete Wage Log'), findsOneWidget);
 
