@@ -18,6 +18,10 @@ import '../features/labour/presentation/screens/worker_list_screen.dart';
 import '../features/labour/presentation/screens/worker_form_screen.dart';
 import '../features/labour/presentation/screens/worker_details_screen.dart';
 import '../features/labour/presentation/screens/attendance_screen.dart';
+import '../features/labour/presentation/screens/quick_add_worker_screen.dart';
+import '../features/labour/presentation/screens/wage_log_success_screen.dart';
+import '../features/labour/presentation/screens/add_multiple_workers_screen.dart';
+import '../features/labour/presentation/screens/wage_log_details_screen.dart';
 import '../features/feeding/presentation/screens/todays_feedings_screen.dart';
 import '../features/feeding/presentation/screens/feeding_form_screen.dart';
 import '../features/feeding/presentation/screens/health_tracking_screen.dart';
@@ -97,6 +101,43 @@ final GoRouter appRouter = GoRouter(
         GoRoute(
           path: 'add',
           builder: (context, state) => const WorkerFormScreen(),
+        ),
+        GoRoute(
+          path: 'quick-add',
+          builder: (context, state) {
+            final worker = state.extra as LabourWorker;
+            return QuickAddWorkerScreen(worker: worker);
+          },
+        ),
+        GoRoute(
+          path: 'multi-add',
+          builder: (context, state) => const AddMultipleWorkersScreen(),
+        ),
+        GoRoute(
+          path: 'success',
+          builder: (context, state) {
+            final map = state.extra as Map<String, dynamic>;
+            return WageLogSuccessScreen(
+              workerName: map['workerName'] as String,
+              amount: map['amount'] as double,
+              taskTitle: map['taskTitle'] as String,
+              shiftName: map['shiftName'] as String,
+              worker: map['worker'] as LabourWorker?,
+            );
+          },
+        ),
+        GoRoute(
+          path: 'wage-log-details',
+          builder: (context, state) {
+            if (state.extra is Expense) {
+              return WageLogDetailsScreen(expense: state.extra as Expense);
+            }
+            final map = state.extra as Map<String, dynamic>;
+            return WageLogDetailsScreen(
+              expense: map['expense'] as Expense,
+              worker: map['worker'] as LabourWorker?,
+            );
+          },
         ),
         GoRoute(
           path: 'attendance',

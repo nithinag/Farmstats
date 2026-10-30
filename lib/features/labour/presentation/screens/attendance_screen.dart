@@ -3,13 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
-import 'package:drift/drift.dart' hide Column;
+import 'package:drift/drift.dart' hide Column, Batch;
 import '../theme/labour_theme.dart';
 import '../widgets/labour_components.dart';
 import '../../domain/entities/labour_entities.dart';
 import '../../application/providers/labour_notifier.dart';
 import '../../application/providers/labour_state.dart';
 import '../../../batches/application/providers/batch_notifier.dart';
+import '../../../batches/application/providers/batch_state.dart';
+import '../../../batches/domain/entities/batch_entities.dart';
 import '../../../expenses/application/providers/expense_notifier.dart';
 import '../../../expenses/domain/entities/expense_entities.dart';
 import '../../../../data/providers/database_provider.dart';
@@ -38,7 +40,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String _selectedTask = 'Silkworm Feeding & Cleaning';
   FarmShift _selectedShift = FarmShift.dayShift;
   DateTime _selectedDate = DateTime.now();
-  String _status = 'Paid'; // 'Paid', 'Pending', 'Overdue'
+  String _status = 'Unpaid'; // Strictly 'Unpaid' or 'Paid'
+  String? _selectedBatchId;
   
   late TextEditingController _amountController;
   late TextEditingController _notesController;
@@ -52,6 +55,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     super.initState();
     _amountController = TextEditingController(text: '500');
     _notesController = TextEditingController();
+    _selectedBatchId = widget.initialBatchId ?? widget.existingExpense?.batchId;
 
     if (widget.existingExpense != null) {
       final exp = widget.existingExpense!;
@@ -61,7 +65,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       final info = WageLogInfo.parse(exp.description);
       _selectedShift = FarmShift.findByNameOrId(info.shiftName);
       _selectedTask = info.taskTitle;
-      _status = info.status;
+      final isExpPaid = exp.paymentMethod == 'Cash' || info.status.toLowerCase() == 'paid';
+      _status = isExpPaid ? 'Paid' : 'Unpaid';
 
       // Check for notes in description
       if (exp.description.contains('Notes:')) {
@@ -137,6 +142,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               date: Value(_selectedDate),
               paymentMethod: Value(expensePaymentMethod),
               description: Value(expenseDescription),
+              batchId: Value(_selectedBatchId),
             ),
           );
 
@@ -203,7 +209,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 AssignmentsTableCompanion.insert(
                   id: const Uuid().v4(),
                   workerId: _selectedWorker!.id,
-                  batchId: Value(widget.initialBatchId),
+                  batchId: Value(_selectedBatchId),
                   task: _selectedTask,
                   startTime: _selectedDate,
                   durationHours: Value(hours),
@@ -238,7 +244,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   categoryId: 'c4', // Labour category ID
                   paymentMethod: expensePaymentMethod,
                   description: expenseDescription,
-                  batchId: Value(widget.initialBatchId),
+                  batchId: Value(_selectedBatchId),
                 ),
                 mode: InsertMode.replace,
               );
@@ -282,6 +288,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       LabourStateData(workers: final list) => list.where((w) => w.status == WorkerStatus.active).toList(),
       _ => <LabourWorker>[],
     };
+
+    final batchState = ref.watch(batchNotifierProvider);
+    final allBatches = switch (batchState) {
+      BatchStateData(batches: final list) => list,
+      _ => <Batch>[],
+    };
+    final selectedBatch = _selectedBatchId != null
+        ? allBatches.where((b) => b.id == _selectedBatchId).firstOrNull
+        : null;
 
     // Auto-select worker if editing or initialWorkerId provided
     if (!_initializedFromExpense && allWorkers.isNotEmpty) {
@@ -562,8 +577,48 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 5. Amount
-                      _buildFieldLabel('Amount (₹) *'),
+                      // 5. Batch (Optional)
+                      _buildFieldLabel('Batch (Optional)'),
+                      InkWell(
+                        onTap: () async {
+                          final chosen = await BatchPickerSheet.show(
+                            context,
+                            batches: allBatches,
+                            currentBatchId: _selectedBatchId,
+                          );
+                          setState(() => _selectedBatchId = chosen);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: LabourColors.cardSurface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: LabourColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.layers_outlined, color: LabourColors.forestGreen, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  selectedBatch?.batchName ?? 'Batch 1 - Mock',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: LabourColors.primaryText,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down, color: LabourColors.secondaryText),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 6. Wage Amount
+                      _buildFieldLabel('Wage Amount *'),
                       TextFormField(
                         controller: _amountController,
                         keyboardType: TextInputType.number,
@@ -595,29 +650,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // 6. Payment Status Chips
+                      // 7. Payment Status Chips (Strictly Unpaid and Paid)
                       _buildFieldLabel('Payment Status *'),
                       Row(
                         children: [
-                          _buildStatusChip(
-                            label: 'Paid',
-                            icon: Icons.check_circle_rounded,
-                            activeColor: LabourColors.forestGreen,
-                            activeBg: LabourColors.softGreenSurface,
+                          Expanded(
+                            child: _buildStatusChip(
+                              label: 'Unpaid',
+                              icon: Icons.check_circle_rounded,
+                              activeColor: const Color(0xFFD97706),
+                              activeBg: LabourColors.softAmberSurface,
+                            ),
                           ),
-                          const SizedBox(width: 10),
-                          _buildStatusChip(
-                            label: 'Pending',
-                            icon: null,
-                            activeColor: const Color(0xFFD97706),
-                            activeBg: LabourColors.softAmberSurface,
-                          ),
-                          const SizedBox(width: 10),
-                          _buildStatusChip(
-                            label: 'Overdue',
-                            icon: Icons.error_rounded,
-                            activeColor: LabourColors.error,
-                            activeBg: LabourColors.softRedSurface,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildStatusChip(
+                              label: 'Paid',
+                              icon: Icons.check_circle_rounded,
+                              activeColor: LabourColors.forestGreen,
+                              activeBg: LabourColors.softGreenSurface,
+                            ),
                           ),
                         ],
                       ),
@@ -704,7 +756,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                             )
                           : Text(
-                              isEditing ? 'Update Log' : 'Save Log',
+                              isEditing ? 'Save Changes' : 'Save Wage Log',
                               style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -747,7 +799,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       onTap: () => setState(() => _status = label),
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: isSelected ? activeBg : LabourColors.cardSurface,
           borderRadius: BorderRadius.circular(10),
@@ -756,12 +808,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             width: isSelected ? 1.5 : 1,
           ),
         ),
+        alignment: Alignment.center,
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null && isSelected) ...[
               Icon(icon, size: 16, color: activeColor),
-              const SizedBox(width: 4),
+              const SizedBox(width: 6),
             ],
             Text(
               label,

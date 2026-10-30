@@ -236,7 +236,8 @@ class WageLogInfo {
         }
       }
       if (parts.length > 2) {
-        task = parts.sublist(2).join(' | ').trim();
+        final taskParts = parts.sublist(2).where((p) => !p.toLowerCase().startsWith('notes:')).toList();
+        task = taskParts.join(' | ').trim();
       }
     } else if (raw.contains('-')) {
       final parts = raw.split('-').map((s) => s.trim()).toList();

@@ -48,7 +48,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
               .replaceAll('(Pending)', '(Paid)')
               .replaceAll('(Unpaid)', '(Paid)')
               .replaceAll('(Overdue)', '(Paid)')
-          : expense.description.replaceAll('(Paid)', '(Pending)');
+          : expense.description.replaceAll('(Paid)', '(Unpaid)');
 
       await db.transaction(() async {
         await (db.update(db.expensesTable)..where((t) => t.id.equals(expense.id))).write(
@@ -78,7 +78,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
       if (mounted) {
         showLabourSuccessFeedback(
           context,
-          title: makePaid ? 'Marked as Paid' : 'Marked as Pending',
+          title: makePaid ? 'Marked as Paid' : 'Marked as Unpaid',
           subtitle: '₹${expense.amount.toStringAsFixed(0)} for ${widget.worker.fullName} updated.',
         );
       }
@@ -397,6 +397,10 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                     monthTotal: periodSummary.total,
                     monthTotalCount: periodSummary.totalCount,
                     recentExpenses: workerExpenses.take(5).toList(),
+                    todayExpense: workerExpenses.where((e) {
+                      final now = DateTime.now();
+                      return e.date.year == now.year && e.date.month == now.month && e.date.day == now.day;
+                    }).firstOrNull,
                   ),
 
                   // Tab 2: Wage Logs
@@ -408,7 +412,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
               ),
             ),
 
-            // Fixed Bottom Action: + Add Wage Log
+            // Fixed Bottom Action: + Add Today's Work (Screen 6 Reference)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: const BoxDecoration(
@@ -419,12 +423,12 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => context.push(
-                    '/labour/attendance',
-                    extra: {'workerId': widget.worker.id},
+                    '/labour/quick-add',
+                    extra: widget.worker,
                   ),
                   icon: const Icon(Icons.add, color: Colors.white, size: 18),
                   label: const Text(
-                    'Add Wage Log',
+                    "+ Add Today's Work",
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -527,87 +531,59 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
     required double monthTotal,
     required int monthTotalCount,
     required List<Expense> recentExpenses,
+    required Expense? todayExpense,
   }) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       children: [
-        // Month Selector Dropdown
-        _buildMonthSelector(),
-        const SizedBox(height: 14),
-
-        // 3 Summary Cards
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: LabourColors.softGreenSurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Paid', style: TextStyle(fontSize: 11, color: LabourColors.secondaryText)),
-                    const SizedBox(height: 4),
-                    Text(
-                      currency.format(monthTotalPaid),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: LabourColors.forestGreen),
-                    ),
-                    const SizedBox(height: 2),
-                    Text('$monthPaidCount ${monthPaidCount == 1 ? "log" : "logs"}', style: const TextStyle(fontSize: 11, color: LabourColors.secondaryText)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: LabourColors.softAmberSurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Pending', style: TextStyle(fontSize: 11, color: LabourColors.secondaryText)),
-                    const SizedBox(height: 4),
-                    Text(
-                      currency.format(monthTotalPending),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFFD97706)),
-                    ),
-                    const SizedBox(height: 2),
-                    Text('$monthPendingCount ${monthPendingCount == 1 ? "log" : "logs"}', style: const TextStyle(fontSize: 11, color: LabourColors.secondaryText)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: LabourColors.secondarySurface,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Total', style: TextStyle(fontSize: 11, color: LabourColors.secondaryText)),
-                    const SizedBox(height: 4),
-                    Text(
-                      currency.format(monthTotal),
-                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
-                    ),
-                    const SizedBox(height: 2),
-                    Text('$monthTotalCount ${monthTotalCount == 1 ? "log" : "logs"}', style: const TextStyle(fontSize: 11, color: LabourColors.secondaryText)),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        // Today's Work Section (Screen 6 Reference)
+        const Text(
+          "Today's Work",
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
         ),
+        const SizedBox(height: 8),
+
+        if (todayExpense != null) ...[
+          _buildTodayWorkCard(todayExpense, currency),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: LabourColors.cardSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: LabourColors.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: LabourColors.secondarySurface,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.event_available_rounded, color: LabourColors.secondaryText, size: 20),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "No work recorded today",
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        "Tap '+ Add Today's Work' below to record",
+                        style: TextStyle(fontSize: 11, color: LabourColors.secondaryText),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
 
         // Recent Wage Logs Header
@@ -644,6 +620,100 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
         else
           ...recentExpenses.map((e) => _buildWageLogCard(e, currency)),
       ],
+    );
+  }
+
+  Widget _buildTodayWorkCard(Expense todayExpense, NumberFormat currency) {
+    final info = WageLogInfo.parse(todayExpense.description, defaultWorker: widget.worker.fullName);
+    final isPaid = info.status.toLowerCase() == 'paid';
+    final displayStatus = isPaid ? 'Paid' : 'Unpaid';
+    final statusBg = isPaid ? LabourColors.softGreenSurface : LabourColors.softAmberSurface;
+    final statusColor = isPaid ? LabourColors.forestGreen : const Color(0xFFD97706);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: LabourColors.cardSurface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: LabourColors.border),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: LabourColors.softGreenSurface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.calendar_today_outlined, color: LabourColors.forestGreen, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  info.taskTitle,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: LabourColors.primaryText),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  info.shiftName,
+                  style: const TextStyle(fontSize: 12, color: LabourColors.secondaryText),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Text(
+                      currency.format(todayExpense.amount),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: LabourColors.forestGreen),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        displayStatus,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: statusColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: LabourColors.secondaryText),
+            onPressed: () {
+              showWageLogActionSheet(
+                context: context,
+                taskTitle: info.taskTitle,
+                workerName: widget.worker.fullName,
+                worker: widget.worker,
+                shiftName: info.shiftName,
+                formattedDate: DateFormat('d MMM yyyy').format(todayExpense.date),
+                amount: todayExpense.amount,
+                status: displayStatus,
+                onEdit: () => context.push('/labour/attendance', extra: todayExpense),
+                onMarkPaid: () => _markPaymentStatus(todayExpense, true),
+                onMarkPending: () => _markPaymentStatus(todayExpense, false),
+                onToggleStatus: () => _togglePaymentStatus(todayExpense),
+                onDelete: () => _deleteWageLog(todayExpense),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -705,6 +775,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
     final info = WageLogInfo.parse(e.description, defaultWorker: widget.worker.fullName);
     final isPaid = info.status.toLowerCase() == 'paid';
     final isOverdue = info.status.toLowerCase() == 'overdue';
+    final displayStatus = isPaid ? 'Paid' : 'Unpaid';
 
     final statusBg = isOverdue
         ? LabourColors.softRedSurface
@@ -722,6 +793,13 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
       ),
       child: InkWell(
         onTap: () {
+          // Navigates to Screen 8: Wage Log Details
+          context.push('/labour/wage-log-details', extra: {
+            'expense': e,
+            'worker': widget.worker,
+          });
+        },
+        onLongPress: () {
           showWageLogActionSheet(
             context: context,
             taskTitle: info.taskTitle,
@@ -730,7 +808,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
             shiftName: info.shiftName,
             formattedDate: DateFormat('d MMM yyyy').format(e.date),
             amount: e.amount,
-            status: info.status,
+            status: displayStatus,
             onEdit: () => context.push('/labour/attendance', extra: e),
             onMarkPaid: () => _markPaymentStatus(e, true),
             onMarkPending: () => _markPaymentStatus(e, false),
@@ -791,7 +869,7 @@ class _WorkerDetailsScreenState extends ConsumerState<WorkerDetailsScreen> with 
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            info.status,
+                            displayStatus,
                             style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor),
                           ),
                         ),

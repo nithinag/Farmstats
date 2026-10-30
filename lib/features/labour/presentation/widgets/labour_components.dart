@@ -600,79 +600,36 @@ class _WorkerPickerSheetState extends State<WorkerPickerSheet> {
   }
 }
 
-/// Component 5: Filter Wage Logs Modal Bottom Sheet (Image Reference)
-class FilterWageLogsSheet extends StatefulWidget {
-  final DateTime selectedMonth;
+/// Component 8B: Batch Picker Modal Bottom Sheet (Screen 12 & Single Worker)
+class BatchPickerSheet extends StatelessWidget {
   final List<Batch> batches;
   final String? selectedBatchId;
-  final List<LabourWorker> workers;
-  final String? selectedWorkerId;
-  final String? selectedWorkType;
-  final String selectedStatus; // 'All', 'Paid', 'Pending'
-  final Function(DateTime month, String? batchId, String? workerId, String? workType, String status) onApply;
+  final ValueChanged<String?> onSelected;
 
-  const FilterWageLogsSheet({
+  const BatchPickerSheet({
     super.key,
-    required this.selectedMonth,
-    this.batches = const [],
+    required this.batches,
     this.selectedBatchId,
-    this.workers = const [],
-    this.selectedWorkerId,
-    this.selectedWorkType,
-    this.selectedStatus = 'All',
-    required this.onApply,
+    required this.onSelected,
   });
 
-  static Future<void> show(
+  static Future<String?> show(
     BuildContext context, {
-    required DateTime initialMonth,
-    List<Batch> batches = const [],
+    required List<Batch> batches,
     String? currentBatchId,
-    List<LabourWorker> workers = const [],
-    String? currentWorkerId,
-    String? currentWorkType,
-    String currentStatus = 'All',
-    required Function(DateTime month, String? batchId, String? workerId, String? workType, String status) onApply,
   }) {
-    return showModalBottomSheet(
+    return showModalBottomSheet<String?>(
       context: context,
-      isScrollControlled: true,
       backgroundColor: LabourColors.cardSurface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => FilterWageLogsSheet(
-        selectedMonth: initialMonth,
+      builder: (ctx) => BatchPickerSheet(
         batches: batches,
         selectedBatchId: currentBatchId,
-        workers: workers,
-        selectedWorkerId: currentWorkerId,
-        selectedWorkType: currentWorkType,
-        selectedStatus: currentStatus,
-        onApply: onApply,
+        onSelected: (batchId) => Navigator.pop(ctx, batchId),
       ),
     );
-  }
-
-  @override
-  State<FilterWageLogsSheet> createState() => _FilterWageLogsSheetState();
-}
-
-class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
-  late DateTime _month;
-  String? _batchId;
-  String? _workerId;
-  String? _workType;
-  late String _status;
-
-  @override
-  void initState() {
-    super.initState();
-    _month = widget.selectedMonth;
-    _batchId = widget.selectedBatchId;
-    _workerId = widget.selectedWorkerId;
-    _workType = widget.selectedWorkType;
-    _status = widget.selectedStatus;
   }
 
   @override
@@ -699,7 +656,7 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  'Filter Wage Logs',
+                  'Select Batch',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -714,123 +671,235 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 18),
-
-            // Month Label & Dropdown
-            const Text(
-              'Month',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: LabourColors.secondaryText,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                color: LabourColors.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: LabourColors.border),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<int>(
-                  value: _month.month,
-                  isExpanded: true,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
-                  items: List.generate(12, (i) {
-                    final m = i + 1;
-                    final date = DateTime(_month.year, m);
-                    return DropdownMenuItem(
-                      value: m,
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_outlined, size: 16, color: LabourColors.forestGreen),
-                          const SizedBox(width: 10),
-                          Text(
-                            DateFormat('MMMM yyyy').format(date),
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: LabourColors.primaryText,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  onChanged: (newMonth) {
-                    if (newMonth != null) {
-                      setState(() => _month = DateTime(_month.year, newMonth));
-                    }
-                  },
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Batch Label & Dropdown
-            const Text(
-              'Batch',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: LabourColors.secondaryText,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-              decoration: BoxDecoration(
-                color: LabourColors.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: LabourColors.border),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String?>(
-                  value: _batchId,
-                  isExpanded: true,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
-                  items: [
-                    const DropdownMenuItem(
-                      value: null,
-                      child: Row(
-                        children: [
-                          Icon(Icons.groups_outlined, size: 18, color: LabourColors.secondaryText),
-                          SizedBox(width: 10),
-                          Text('All Batches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
-                        ],
+            const SizedBox(height: 14),
+            if (batches.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(16),
+                alignment: Alignment.center,
+                child: const Text('No active batches found', style: TextStyle(color: LabourColors.secondaryText)),
+              )
+            else
+              ...batches.map((b) {
+                final isSelected = selectedBatchId == b.id;
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: isSelected ? LabourColors.softGreenSurface : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? LabourColors.forestGreen : LabourColors.border,
+                    ),
+                  ),
+                  child: ListTile(
+                    title: Text(
+                      b.batchName,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: LabourColors.primaryText,
                       ),
                     ),
-                    ...widget.batches.map(
-                      (b) => DropdownMenuItem(
-                        value: b.id,
+                    subtitle: Text(
+                      'Silkworm Variety: ${b.silkwormVariety}',
+                      style: const TextStyle(fontSize: 12, color: LabourColors.secondaryText),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle_rounded, color: LabourColors.forestGreen, size: 22)
+                        : null,
+                    onTap: () => onSelected(b.id),
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Component 5: Filter Wage Logs Modal Bottom Sheet (Screen 11 Reference)
+class FilterWageLogsSheet extends StatefulWidget {
+  final DateTime selectedMonth;
+  final List<Batch> batches;
+  final String? selectedBatchId;
+  final List<LabourWorker> workers;
+  final String? selectedWorkerId;
+  final String? selectedWorkType;
+  final String selectedStatus; // 'All', 'Paid', 'Unpaid'
+  final String selectedSort;
+  final Function(DateTime month, String? batchId, String? workerId, String? workType, String status)? onApply;
+  final Function(DateTime month, String? batchId, String? workerId, String? workType, String status, String sort)? onApplyWithSort;
+
+  const FilterWageLogsSheet({
+    super.key,
+    required this.selectedMonth,
+    this.batches = const [],
+    this.selectedBatchId,
+    this.workers = const [],
+    this.selectedWorkerId,
+    this.selectedWorkType,
+    this.selectedStatus = 'All',
+    this.selectedSort = 'Work Date (Newest First)',
+    this.onApply,
+    this.onApplyWithSort,
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    required DateTime initialMonth,
+    List<Batch> batches = const [],
+    String? currentBatchId,
+    List<LabourWorker> workers = const [],
+    String? currentWorkerId,
+    String? currentWorkType,
+    String currentStatus = 'All',
+    String currentSort = 'Work Date (Newest First)',
+    Function(DateTime month, String? batchId, String? workerId, String? workType, String status)? onApply,
+    Function(DateTime month, String? batchId, String? workerId, String? workType, String status, String sort)? onApplyWithSort,
+  }) {
+    return showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: LabourColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => FilterWageLogsSheet(
+        selectedMonth: initialMonth,
+        batches: batches,
+        selectedBatchId: currentBatchId,
+        workers: workers,
+        selectedWorkerId: currentWorkerId,
+        selectedWorkType: currentWorkType,
+        selectedStatus: currentStatus,
+        selectedSort: currentSort,
+        onApply: onApply,
+        onApplyWithSort: onApplyWithSort,
+      ),
+    );
+  }
+
+  @override
+  State<FilterWageLogsSheet> createState() => _FilterWageLogsSheetState();
+}
+
+class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
+  late DateTime _month;
+  String? _batchId;
+  String? _workerId;
+  String? _workType;
+  late String _status;
+  late String _sort;
+
+  @override
+  void initState() {
+    super.initState();
+    _month = widget.selectedMonth;
+    _batchId = widget.selectedBatchId;
+    _workerId = widget.selectedWorkerId;
+    _workType = widget.selectedWorkType;
+    _status = widget.selectedStatus;
+    _sort = widget.selectedSort;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: LabourColors.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Filter Wage Logs',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: LabourColors.primaryText,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20, color: LabourColors.secondaryText),
+                    onPressed: () => Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+
+              // Month Label & Dropdown
+              const Text(
+                'Month',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: LabourColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<int>(
+                    value: _month.month,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                    items: List.generate(12, (i) {
+                      final m = i + 1;
+                      final date = DateTime(_month.year, m);
+                      return DropdownMenuItem(
+                        value: m,
                         child: Row(
                           children: [
-                            const Icon(Icons.layers_outlined, size: 18, color: LabourColors.forestGreen),
+                            const Icon(Icons.calendar_today_outlined, size: 16, color: LabourColors.forestGreen),
                             const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                b.batchName,
-                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
-                                overflow: TextOverflow.ellipsis,
+                            Text(
+                              DateFormat('MMMM yyyy').format(date),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: LabourColors.primaryText,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ],
-                  onChanged: (newBatch) => setState(() => _batchId = newBatch),
+                      );
+                    }),
+                    onChanged: (newMonth) {
+                      if (newMonth != null) {
+                        setState(() => _month = DateTime(_month.year, newMonth));
+                      }
+                    },
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 16),
 
-            // Optional Worker row if workers provided
-            if (widget.workers.isNotEmpty) ...[
-              const SizedBox(height: 14),
+              // Batch Label & Dropdown
               const Text(
-                'Worker',
+                'Batch',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -847,70 +916,219 @@ class _FilterWageLogsSheetState extends State<FilterWageLogsSheet> {
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String?>(
-                    value: _workerId,
+                    value: _batchId,
                     isExpanded: true,
                     icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
                     items: [
                       const DropdownMenuItem(
                         value: null,
-                        child: Text('All Workers', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        child: Row(
+                          children: [
+                            Icon(Icons.layers_outlined, size: 18, color: LabourColors.secondaryText),
+                            SizedBox(width: 10),
+                            Text('All Batches', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText)),
+                          ],
+                        ),
                       ),
-                      ...widget.workers.map(
-                        (w) => DropdownMenuItem(
-                          value: w.id,
-                          child: Text(w.fullName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                      ...widget.batches.map(
+                        (b) => DropdownMenuItem(
+                          value: b.id,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.layers_outlined, size: 18, color: LabourColors.forestGreen),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  b.batchName,
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: LabourColors.primaryText),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
-                    onChanged: (newId) => setState(() => _workerId = newId),
+                    onChanged: (newBatch) => setState(() => _batchId = newBatch),
                   ),
                 ),
               ),
-            ],
+              const SizedBox(height: 16),
 
-            const SizedBox(height: 24),
-            // Action Buttons: Reset & Apply
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() {
-                        _month = DateTime.now();
-                        _batchId = null;
-                        _workerId = null;
-                        _workType = null;
-                        _status = 'All';
-                      });
+              // Payment Status: All / Paid / Unpaid (Screen 11 Reference)
+              const Text(
+                'Payment Status',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: LabourColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: Row(
+                  children: [
+                    _buildStatusChip('All'),
+                    _buildStatusChip('Paid'),
+                    _buildStatusChip('Unpaid'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Sort by Dropdown (Screen 11 Reference)
+              const Text(
+                'Sort by',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: LabourColors.secondaryText,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: LabourColors.background,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: LabourColors.border),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _sort,
+                    isExpanded: true,
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, color: LabourColors.secondaryText),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Work Date (Newest First)',
+                        child: Row(
+                          children: [
+                            Icon(Icons.sort_rounded, size: 18, color: LabourColors.forestGreen),
+                            SizedBox(width: 10),
+                            Text('Work Date (Newest First)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Work Date (Oldest First)',
+                        child: Row(
+                          children: [
+                            Icon(Icons.sort_rounded, size: 18, color: LabourColors.secondaryText),
+                            SizedBox(width: 10),
+                            Text('Work Date (Oldest First)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Amount (High to Low)',
+                        child: Row(
+                          children: [
+                            Icon(Icons.trending_down_rounded, size: 18, color: LabourColors.secondaryText),
+                            SizedBox(width: 10),
+                            Text('Amount (High to Low)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Amount (Low to High)',
+                        child: Row(
+                          children: [
+                            Icon(Icons.trending_up_rounded, size: 18, color: LabourColors.secondaryText),
+                            SizedBox(width: 10),
+                            Text('Amount (Low to High)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onChanged: (newSort) {
+                      if (newSort != null) setState(() => _sort = newSort);
                     },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: LabourColors.border),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Reset', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w700, fontSize: 14)),
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      widget.onApply(_month, _batchId, _workerId, _workType, _status);
-                      Navigator.pop(context);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: LabourColors.forestGreen,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
+              ),
+
+              const SizedBox(height: 24),
+              // Action Buttons: Reset & Apply
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        setState(() {
+                          _month = DateTime.now();
+                          _batchId = null;
+                          _workerId = null;
+                          _workType = null;
+                          _status = 'All';
+                          _sort = 'Work Date (Newest First)';
+                        });
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(color: LabourColors.border),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Reset', style: TextStyle(color: LabourColors.secondaryText, fontWeight: FontWeight.w700, fontSize: 14)),
                     ),
-                    child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        if (widget.onApplyWithSort != null) {
+                          widget.onApplyWithSort!(_month, _batchId, _workerId, _workType, _status, _sort);
+                        } else if (widget.onApply != null) {
+                          widget.onApply!(_month, _batchId, _workerId, _workType, _status);
+                        }
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: LabourColors.forestGreen,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Colors.white)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusChip(String label) {
+    final isSelected = _status.toLowerCase() == label.toLowerCase() ||
+        (_status == 'Pending' && label == 'Unpaid') ||
+        (_status == 'Unpaid' && label == 'Pending');
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _status = label),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? LabourColors.forestGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              color: isSelected ? Colors.white : LabourColors.secondaryText,
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -1369,7 +1587,7 @@ Future<void> showWageLogActionSheet({
                 const Divider(height: 1, color: LabourColors.borderLight),
               ],
 
-              // Contextual Action 3: If Paid -> Mark as Pending (amber/orange text with a clock icon)
+              // Contextual Action 3: If Paid -> Mark as Unpaid (amber/orange text with a clock icon, Screen 10 Reference)
               if (isPaid) ...[
                 InkWell(
                   onTap: () async {
@@ -1398,7 +1616,7 @@ Future<void> showWageLogActionSheet({
                         Icon(Icons.access_time_rounded, size: 20, color: Color(0xFFD97706)),
                         SizedBox(width: 14),
                         Text(
-                          'Mark as Pending',
+                          'Mark as Unpaid',
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFFD97706)),
                         ),
                       ],
@@ -1615,13 +1833,16 @@ class ConfirmMarkPaidDialog extends StatelessWidget {
   }
 }
 
-/// Confirmation Dialog when reverting a Wage Log to Pending
+/// Confirmation Dialog when reverting a Wage Log to Unpaid / Pending
 class ConfirmMarkPendingDialog extends StatelessWidget {
   final String workerName;
   final double amount;
   final String formattedDate;
   final String shiftName;
   final VoidCallback onConfirm;
+  final String title;
+  final String subtitle;
+  final String confirmLabel;
 
   const ConfirmMarkPendingDialog({
     super.key,
@@ -1630,6 +1851,9 @@ class ConfirmMarkPendingDialog extends StatelessWidget {
     required this.formattedDate,
     required this.shiftName,
     required this.onConfirm,
+    this.title = 'Mark as Unpaid?',
+    this.subtitle = 'This will revert the payment to pending dues.',
+    this.confirmLabel = 'Mark as Unpaid',
   });
 
   static Future<bool?> show(
@@ -1639,6 +1863,9 @@ class ConfirmMarkPendingDialog extends StatelessWidget {
     required String formattedDate,
     required String shiftName,
     required VoidCallback onConfirm,
+    String title = 'Mark as Unpaid?',
+    String subtitle = 'This will revert the payment to pending dues.',
+    String confirmLabel = 'Mark as Unpaid',
   }) {
     return showDialog<bool>(
       context: context,
@@ -1648,6 +1875,9 @@ class ConfirmMarkPendingDialog extends StatelessWidget {
         formattedDate: formattedDate,
         shiftName: shiftName,
         onConfirm: onConfirm,
+        title: title,
+        subtitle: subtitle,
+        confirmLabel: confirmLabel,
       ),
     );
   }
@@ -1676,18 +1906,19 @@ class ConfirmMarkPendingDialog extends StatelessWidget {
               child: const Icon(Icons.access_time_rounded, color: Color(0xFFD97706), size: 30),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Mark as Pending?',
-              style: TextStyle(
+            Text(
+              title,
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: LabourColors.primaryText,
               ),
             ),
             const SizedBox(height: 6),
-            const Text(
-              'This will revert the payment to pending dues.',
-              style: TextStyle(
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
                 fontSize: 13,
                 color: LabourColors.secondaryText,
               ),
@@ -1743,7 +1974,7 @@ class ConfirmMarkPendingDialog extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
-                    child: const Text('Mark as Pending', style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
+                    child: Text(confirmLabel, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.white)),
                   ),
                 ),
               ],

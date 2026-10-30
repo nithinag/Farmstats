@@ -169,7 +169,7 @@ void main() {
       // Verify Wage Logs elements
       expect(find.textContaining('All ('), findsOneWidget);
       expect(find.textContaining('Paid ('), findsOneWidget);
-      expect(find.textContaining('Pending ('), findsOneWidget);
+      expect(find.textContaining('Unpaid ('), findsOneWidget);
       expect(find.text('All Batches'), findsOneWidget);
       expect(find.text('Add Wage Log'), findsOneWidget);
 
@@ -177,16 +177,16 @@ void main() {
       expect(find.text('Silkworm Feeding & Cleaning'), findsOneWidget);
       expect(find.text('Mulberry Field Work'), findsOneWidget);
       expect(find.text('Paid'), findsWidgets);
-      expect(find.text('Pending'), findsWidgets);
+      expect(find.text('Unpaid'), findsWidgets);
 
-      // Tap on wage log to open action sheet with edit, mark status, and delete options
-      await tester.tap(find.text('Silkworm Feeding & Cleaning').first);
+      // Long press on wage log to open action sheet with edit, mark status, and delete options
+      await tester.longPress(find.text('Silkworm Feeding & Cleaning').first);
       await tester.pumpAndSettle();
 
       expect(find.text('Wage Log Options'), findsOneWidget);
       expect(find.text('Edit Wage Log'), findsOneWidget);
-      // Since Silkworm Feeding & Cleaning is Paid, it MUST show Mark as Pending and NEVER Mark as Paid
-      expect(find.text('Mark as Pending'), findsOneWidget);
+      // Since Silkworm Feeding & Cleaning is Paid, it MUST show Mark as Unpaid and NEVER Mark as Paid
+      expect(find.text('Mark as Unpaid'), findsOneWidget);
       expect(find.text('Mark as Paid'), findsNothing);
       expect(find.text('Delete Wage Log'), findsOneWidget);
 
@@ -205,15 +205,15 @@ void main() {
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
-      // Now tap on Mulberry Field Work (Pending) to verify contextual actions
-      await tester.tap(find.text('Mulberry Field Work').first);
+      // Now long press on Mulberry Field Work (Unpaid) to verify contextual actions
+      await tester.longPress(find.text('Mulberry Field Work').first);
       await tester.pumpAndSettle();
 
       expect(find.text('Wage Log Options'), findsOneWidget);
       expect(find.text('Edit Wage Log'), findsOneWidget);
-      // Since Mulberry Field Work is Pending, it MUST show Mark as Paid and NEVER Mark as Pending
+      // Since Mulberry Field Work is Unpaid, it MUST show Mark as Paid and NEVER Mark as Unpaid
       expect(find.text('Mark as Paid'), findsOneWidget);
-      expect(find.text('Mark as Pending'), findsNothing);
+      expect(find.text('Mark as Unpaid'), findsNothing);
       expect(find.text('Delete Wage Log'), findsOneWidget);
 
       // Tap Mark as Paid to open confirmation dialog
@@ -315,8 +315,8 @@ void main() {
       expect(find.text('Wage Logs'), findsOneWidget);
       expect(find.text('Edit'), findsNothing);
 
-      // Bottom fixed action button: Add Wage Log
-      expect(find.text('Add Wage Log'), findsOneWidget);
+      // Bottom fixed action button: + Add Today's Work
+      expect(find.text("+ Add Today's Work"), findsOneWidget);
 
       // Verify Edit and Remove are in the top-right overflow popup menu
       final popupMenu = find.byType(PopupMenuButton<String>);
@@ -367,12 +367,11 @@ void main() {
       expect(find.text('Shift *'), findsOneWidget);
       expect(find.text('Day Shift'), findsOneWidget);
       expect(find.text('Date *'), findsOneWidget);
-      expect(find.text('Amount (₹) *'), findsOneWidget);
+      expect(find.text('Wage Amount *'), findsOneWidget);
       expect(find.text('Payment Status *'), findsOneWidget);
       expect(find.text('Paid'), findsOneWidget);
-      expect(find.text('Pending'), findsOneWidget);
-      expect(find.text('Overdue'), findsOneWidget);
-      expect(find.text('Save Log'), findsOneWidget);
+      expect(find.text('Unpaid'), findsOneWidget);
+      expect(find.text('Save Wage Log'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
 
       // Tap Shift card to open SelectShiftSheet
@@ -390,12 +389,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Early Morning Shift'), findsOneWidget);
 
-      // Tap Pending status chip
-      await tester.tap(find.text('Pending'));
-      await tester.pumpAndSettle();
-
-      // Tap Overdue status chip
-      await tester.tap(find.text('Overdue'));
+      // Tap Unpaid status chip
+      await tester.tap(find.text('Unpaid'));
       await tester.pumpAndSettle();
     });
 
@@ -469,14 +464,14 @@ void main() {
       await tester.tap(find.text('Open Pending Dialog'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Mark as Pending?'), findsOneWidget);
+      expect(find.text('Mark as Unpaid?'), findsOneWidget);
       expect(find.text('This will revert the payment to pending dues.'), findsOneWidget);
       expect(find.text('Samantha'), findsOneWidget);
       expect(find.text('30 Oct 2026'), findsOneWidget);
       expect(find.text('Day Shift'), findsOneWidget);
       expect(find.text('₹600'), findsOneWidget);
 
-      await tester.tap(find.widgetWithText(ElevatedButton, 'Mark as Pending'));
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Mark as Unpaid'));
       await tester.pumpAndSettle();
       expect(pendingConfirmed, isTrue);
 
